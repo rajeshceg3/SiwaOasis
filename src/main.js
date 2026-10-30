@@ -35,6 +35,7 @@ function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
+  camera.position.z = camera.aspect < 0.75 ? 16.5 : 10;
   camera.updateProjectionMatrix();
 }
 addEventListener("resize", resize); resize();
@@ -98,9 +99,9 @@ function ripple(x, y) {
 function frondGeo() {
   const s = new THREE.Shape();
   s.moveTo(0, 0);
-  s.quadraticCurveTo(0.9, 0.34, 2.1, 0.16);
-  s.quadraticCurveTo(2.5, 0.05, 2.6, -0.08);
-  s.quadraticCurveTo(1.5, -0.22, 0, -0.1);
+  s.quadraticCurveTo(1.2, 0.3, 2.6, 0.05);
+  s.quadraticCurveTo(3.1, -0.05, 3.2, -0.38);
+  s.quadraticCurveTo(1.8, -0.3, 0, -0.08);
   s.closePath();
   return new THREE.ShapeGeometry(s, 8);
 }
