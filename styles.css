@@ -59,7 +59,7 @@ body {
   text-shadow: 0 1px 10px rgba(246, 239, 226, 0.55);
   background: radial-gradient(ellipse 60% 100% at 50% 50%, rgba(246, 239, 226, 0.5), rgba(246, 239, 226, 0));
 }
-#whisper.show { opacity: 0.92; }
+#whisper.show { opacity: 1; }
 
 /* night chapter: light ink on dark scene */
 body.night { --ink: #f0e9d8; }
