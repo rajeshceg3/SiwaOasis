@@ -54,10 +54,25 @@ body {
 #whisper {
   position: fixed; left: 0; right: 0; bottom: 11vh; z-index: 20;
   text-align: center; font-size: clamp(0.95rem, 3.8vw, 1.1rem);
-  color: var(--ink); opacity: 0; padding: 0 3rem; pointer-events: none;
+  color: var(--ink); opacity: 0; padding: 0.35rem 3rem; pointer-events: none;
   transition: opacity 1.4s ease;
+  text-shadow: 0 1px 10px rgba(246, 239, 226, 0.55);
+  background: radial-gradient(ellipse 60% 100% at 50% 50%, rgba(246, 239, 226, 0.5), rgba(246, 239, 226, 0));
 }
-#whisper.show { opacity: 0.62; }
+#whisper.show { opacity: 0.92; }
+
+/* night chapter: light ink on dark scene */
+body.night { --ink: #f0e9d8; }
+body.night #caption { text-shadow: 0 1px 12px rgba(14, 18, 34, 0.6); }
+body.night #whisper {
+  text-shadow: 0 1px 10px rgba(14, 18, 34, 0.65);
+  background: radial-gradient(ellipse 60% 100% at 50% 50%, rgba(18, 22, 40, 0.38), rgba(18, 22, 40, 0));
+}
+body.night #dock {
+  background: rgba(20, 24, 44, 0.5);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+body.night .dot.active { background: rgba(240, 233, 216, 0.16); }
 
 /* dock */
 #dock {
@@ -65,7 +80,7 @@ body {
   transform: translateX(-50%); z-index: 20;
   display: flex; gap: 0.4rem;
   padding: 0.5rem 0.7rem; border-radius: 999px;
-  background: rgba(246, 239, 226, 0.42);
+  background: rgba(246, 239, 226, 0.5);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 6px 24px rgba(43, 36, 25, 0.12), inset 0 1px 0 rgba(255,255,255,0.5);
 }

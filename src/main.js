@@ -195,7 +195,7 @@ const CHAPTERS = [
   { skyTop: "#f6c98b", skyBot: "#e8a05c", fog: ["#e8a05c", 0.02], far: "#c98a4e", near: "#a06a3c",
     palms: 0.28, water: 0, sheen: 0, shali: 1, lanterns: true, stars: 0.12, motes: ["#ffdfb0", 0.4],
     caption: "The Shali remembers every sunset.", whisper: "Salt and mud-brick, built to melt back." },
-  { skyTop: "#141a33", skyBot: "#2a3358", fog: ["#232a4a", 0.03], far: "#3a3f63", near: "#2b2f4d",
+  { skyTop: "#141a33", skyBot: "#2a3358", fog: ["#232a4a", 0.03], far: "#3a3f63", near: "#2b2f4d", night: true,
     palms: 0.08, water: 0, sheen: 0, shali: 0.2, lanterns: true, stars: 1, motes: ["#d8c9a8", 0.5],
     caption: "Beyond the dunes, the Oracle listens.", whisper: "Alexander came this far to ask one question." },
 ];
@@ -229,6 +229,7 @@ function setChapter(i) {
   target.sheen = c.sheen; target.shali = c.shali; target.stars = c.stars;
   target.motesO = c.motes[1]; target.lanterns = c.lanterns;
   dots.forEach((d, j) => d.classList.toggle("active", j === i));
+  document.body.classList.toggle("night", !!c.night);
   caption.classList.remove("show"); whisper.classList.remove("show");
   clearTimeout(whisperTimer);
   clearInterval(lakeCueTimer);
