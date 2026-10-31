@@ -21,6 +21,7 @@ function stepSprings(dt) {
 }
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpColor = (c, target, t) => { c.r = lerp(c.r, target.r, t); c.g = lerp(c.g, target.g, t); c.b = lerp(c.b, target.b, t); };
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- renderer ---------- */
 const canvas = document.getElementById("oasis");
@@ -190,7 +191,7 @@ const CHAPTERS = [
     caption: "A sea of date palms, breathing.", whisper: "Two hundred thousand palms, one breeze." },
   { skyTop: "#eafaf6", skyBot: "#cdf0ea", fog: ["#cdf0ea", 0.012], far: "#f2efe8", near: "#e3ddd0",
     palms: 0.12, water: 0.96, sheen: 0.5, shali: 0, lanterns: false, stars: 0, motes: ["#ffffff", 0.2],
-    caption: "Salt lakes still enough to hold the sky.", whisper: "Tap the water." },
+    caption: "Salt lakes still enough to hold the sky.", whisper: "The water answers every touch." },
   { skyTop: "#f6c98b", skyBot: "#e8a05c", fog: ["#e8a05c", 0.02], far: "#c98a4e", near: "#a06a3c",
     palms: 0.28, water: 0, sheen: 0, shali: 1, lanterns: true, stars: 0.12, motes: ["#ffdfb0", 0.4],
     caption: "The Shali remembers every sunset.", whisper: "Salt and mud-brick, built to melt back." },
@@ -212,7 +213,7 @@ const caption = document.getElementById("caption");
 const whisper = document.getElementById("whisper");
 const chrome = [...document.querySelectorAll(".chrome")];
 const dots = [...document.querySelectorAll(".dot")];
-let idleTimer, whisperTimer;
+let idleTimer, whisperTimer, lakeCueTimer;
 function wakeChrome() {
   chrome.forEach((c) => c.classList.remove("idle"));
   clearTimeout(idleTimer);
@@ -230,6 +231,11 @@ function setChapter(i) {
   dots.forEach((d, j) => d.classList.toggle("active", j === i));
   caption.classList.remove("show"); whisper.classList.remove("show");
   clearTimeout(whisperTimer);
+  clearInterval(lakeCueTimer);
+  if (i === 1 && !reduceMotion) {
+    setTimeout(() => ripple(-4 + Math.random() * 8, -9.2 + Math.random() * 1.4), 2400);
+    lakeCueTimer = setInterval(() => ripple(-8 + Math.random() * 16, -9.3 + Math.random() * 1.6), 5200);
+  }
   setTimeout(() => { caption.textContent = c.caption; caption.classList.add("show"); }, 1100);
   whisperTimer = setTimeout(() => { whisper.textContent = c.whisper; whisper.classList.add("show"); }, 3200);
   wakeChrome();
@@ -262,8 +268,8 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
 
-  camX = lerp(camX, px * 1.1, 1 - Math.exp(-3.2 * dt));
-  camY = lerp(camY, -py * 0.5, 1 - Math.exp(-3.2 * dt));
+  camX = reduceMotion ? 0 : lerp(camX, px * 1.1, 1 - Math.exp(-3.2 * dt));
+  camY = reduceMotion ? 0 : lerp(camY, -py * 0.5, 1 - Math.exp(-3.2 * dt));
   camera.position.x = camX; camera.position.y = camY;
   camera.lookAt(camX * 0.4, camY * 0.3, -20);
 
@@ -282,25 +288,27 @@ function tick() {
   starMat.opacity = lerp(starMat.opacity, target.stars, k);
   moteMat.opacity = lerp(moteMat.opacity, target.motesO, k);
 
-  for (const p of palmList) p.g.rotation.z = Math.sin(t * 0.7 + p.phase) * 0.022;
+  if (!reduceMotion) for (const p of palmList) p.g.rotation.z = Math.sin(t * 0.7 + p.phase) * 0.022;
 
   for (const l of lanterns) {
     if (target.lanterns && chapter >= 2) {
       l.on = true;
       const base = Math.max(0, Math.min(1, (t * 0.6 - l.delay)));
-      l.m.material.opacity = base * (0.55 + Math.sin(t * 6 + l.flick) * 0.18);
+      l.m.material.opacity = base * (reduceMotion ? 0.66 : 0.55 + Math.sin(t * 6 + l.flick) * 0.18);
     } else if (l.on || l.m.material.opacity > 0) {
       l.m.material.opacity = lerp(l.m.material.opacity, 0, k); l.on = false;
     }
   }
 
-  const pos = moteGeo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    let x = pos.getX(i) + dt * (0.35 + (i % 5) * 0.08);
-    if (x > 46) x = -46;
-    pos.setX(i, x);
+  if (!reduceMotion) {
+    const pos = moteGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      let x = pos.getX(i) + dt * (0.35 + (i % 5) * 0.08);
+      if (x > 46) x = -46;
+      pos.setX(i, x);
+    }
+    pos.needsUpdate = true;
   }
-  pos.needsUpdate = true;
 
   for (let i = ripples.length - 1; i >= 0; i--) {
     const r = ripples[i];
