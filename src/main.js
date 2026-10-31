@@ -233,8 +233,8 @@ function setChapter(i) {
   clearTimeout(whisperTimer);
   clearInterval(lakeCueTimer);
   if (i === 1 && !reduceMotion) {
-    setTimeout(() => ripple(-4 + Math.random() * 8, -9.2 + Math.random() * 1.4), 2400);
-    lakeCueTimer = setInterval(() => ripple(-8 + Math.random() * 16, -9.3 + Math.random() * 1.6), 5200);
+    setTimeout(() => ripple(-4 + Math.random() * 8, -7.7 + Math.random() * 0.8), 2400);
+    lakeCueTimer = setInterval(() => ripple(-8 + Math.random() * 16, -7.9 + Math.random() * 1.0), 5200);
   }
   setTimeout(() => { caption.textContent = c.caption; caption.classList.add("show"); }, 1100);
   whisperTimer = setTimeout(() => { whisper.textContent = c.whisper; whisper.classList.add("show"); }, 3200);
