@@ -156,7 +156,7 @@ const lanterns = [];
 {
   const mat = () => new THREE.MeshBasicMaterial({ color: "#ffd9a0", transparent: true, opacity: 0 });
   for (let i = 0; i < 12; i++) {
-    const l = new THREE.Mesh(new THREE.CircleGeometry(0.09, 12), mat());
+    const l = new THREE.Mesh(new THREE.CircleGeometry(0.17, 12), mat());
     l.position.set(-12 + Math.random() * 25, -1.6 + Math.random() * 4.4, -25.8);
     scene.add(l);
     lanterns.push({ m: l, delay: i * 0.35, on: false, flick: Math.random() * 6.28 });
@@ -167,10 +167,10 @@ const lanterns = [];
 const starGeo = new THREE.BufferGeometry();
 {
   const pts = [];
-  for (let i = 0; i < 260; i++) pts.push((Math.random() - 0.5) * 160, Math.random() * 46 - 4, -50 + Math.random() * 18);
+  for (let i = 0; i < 420; i++) pts.push((Math.random() - 0.5) * 160, Math.random() * 46 - 4, -50 + Math.random() * 18);
   starGeo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
 }
-const starMat = new THREE.PointsMaterial({ color: "#fff7e6", size: 0.16, transparent: true, opacity: 0, sizeAttenuation: true });
+const starMat = new THREE.PointsMaterial({ color: "#fff7e6", size: 0.22, transparent: true, opacity: 0, sizeAttenuation: true });
 scene.add(new THREE.Points(starGeo, starMat));
 
 /* drifting motes */
@@ -228,7 +228,11 @@ function setChapter(i) {
   target.fogN = c.fog[1]; target.palms = c.palms; target.water = c.water;
   target.sheen = c.sheen; target.shali = c.shali; target.stars = c.stars;
   target.motesO = c.motes[1]; target.lanterns = c.lanterns;
-  dots.forEach((d, j) => d.classList.toggle("active", j === i));
+  dots.forEach((d, j) => {
+    const on = j === i;
+    d.classList.toggle("active", on);
+    if (on) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current");
+  });
   document.body.classList.toggle("night", !!c.night);
   caption.classList.remove("show"); whisper.classList.remove("show");
   clearTimeout(whisperTimer);
@@ -301,7 +305,9 @@ addEventListener("pointercancel", (e) => { if (dockPointer === e.pointerId) dock
 addEventListener("pointerup", (e) => {
   dragging = false;
   if (dockPointer === e.pointerId) { dockPointer = null; return; } // dock taps never ripple the lake
-  if (moved < 12 && chapter === 1 && e.clientY > innerHeight * 0.42) {
+  const dr = dock.getBoundingClientRect();
+  const onDock = e.clientX >= dr.left - 8 && e.clientX <= dr.right + 8 && e.clientY >= dr.top - 8;
+  if (moved < 12 && chapter === 1 && !onDock && e.clientY > innerHeight * 0.42) {
     const v = new THREE.Vector3((e.clientX / innerWidth) * 2 - 1, -((e.clientY / innerHeight) * 2 - 1), 0.5).unproject(camera);
     const dir = v.sub(camera.position).normalize();
     const t = (-12 - camera.position.z) / dir.z;
@@ -343,7 +349,7 @@ function tick() {
     if (target.lanterns && chapter >= 2) {
       l.on = true;
       const base = Math.max(0, Math.min(1, (t * 0.6 - l.delay)));
-      l.m.material.opacity = base * (reduceMotion ? 0.66 : 0.55 + Math.sin(t * 6 + l.flick) * 0.18);
+      l.m.material.opacity = base * (reduceMotion ? 0.72 : 0.72 + Math.sin(t * 6 + l.flick) * 0.16);
     } else if (l.on || l.m.material.opacity > 0) {
       l.m.material.opacity = lerp(l.m.material.opacity, 0, k); l.on = false;
     }
@@ -378,6 +384,7 @@ tick();
 setTimeout(() => {
   veil.classList.add("gone");
   dots[0].classList.add("active");
+  dots[0].setAttribute("aria-current", "true");
   caption.textContent = CHAPTERS[0].caption;
   setTimeout(() => caption.classList.add("show"), 900);
   whisper.textContent = CHAPTERS[0].whisper;
