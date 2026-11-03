@@ -191,7 +191,7 @@ const CHAPTERS = [
     caption: "A sea of date palms, breathing.", whisper: "Two hundred thousand palms, one breeze." },
   { skyTop: "#eafaf6", skyBot: "#cdf0ea", fog: ["#cdf0ea", 0.012], far: "#f2efe8", near: "#e3ddd0",
     palms: 0.12, water: 0.96, sheen: 0.5, shali: 0, lanterns: false, stars: 0, motes: ["#ffffff", 0.2],
-    caption: "Salt lakes still enough to hold the sky.", whisper: "The water answers every touch." },
+    caption: "Salt lakes still enough to hold the sky.", whisper: "You float before you swim." },
   { skyTop: "#f6c98b", skyBot: "#e8a05c", fog: ["#e8a05c", 0.02], far: "#c98a4e", near: "#a06a3c",
     palms: 0.28, water: 0, sheen: 0, shali: 1, lanterns: true, stars: 0.12, motes: ["#ffdfb0", 0.4],
     caption: "The Shali remembers every sunset.", whisper: "Salt and mud-brick, built to melt back." },
