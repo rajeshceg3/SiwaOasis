@@ -112,3 +112,7 @@ body.night .dot.active { background: rgba(240, 233, 216, 0.16); }
   outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
+
+/* Idle wins over chapter copy's visible state. */
+#caption.show.idle,
+#whisper.show.idle { opacity: 0; }
