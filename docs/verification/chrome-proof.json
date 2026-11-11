@@ -1,0 +1,15 @@
+{
+  "url": "http://127.0.0.1:4191",
+  "results": [
+    {
+      "width": 390,
+      "reduced": false,
+      "ok": true
+    },
+    {
+      "width": 390,
+      "reduced": true,
+      "ok": true
+    }
+  ]
+}

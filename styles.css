@@ -1,4 +1,6 @@
 :root {
+  --paper-dim: #eadcc0;
+  --sun: #e6a93f;
   --ink: #2b2419;
   --paper: #f6efe2;
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -12,6 +14,9 @@ body {
 }
 #oasis { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
+@font-face { font-family: "Caveat Brush"; src: url("fonts/caveat-brush.woff2") format("woff2"); font-display: swap; }
+:root { --hand: "Caveat Brush", "Segoe Print", "Bradley Hand", cursive; }
+
 /* veil intro */
 #veil {
   position: fixed; inset: 0; z-index: 30;
@@ -21,27 +26,61 @@ body {
 }
 #veil.gone { opacity: 0; pointer-events: none; }
 .wordmark {
-  font-weight: 500; font-size: clamp(3rem, 14vw, 5.5rem);
-  letter-spacing: 0.14em; color: var(--ink);
+  font-family: var(--hand); font-weight: 400; font-size: clamp(3.4rem, 16vw, 6.5rem);
+  letter-spacing: 0.04em; color: var(--ink);
   opacity: 0; transform: translateY(14px);
   animation: rise 2.2s var(--ease-spring) 0.3s forwards;
 }
 @keyframes rise { to { opacity: 1; transform: none; } }
 
 /* chrome */
-.chrome { transition: opacity 0.9s ease; }
-.chrome.idle { opacity: 0; pointer-events: none; }
+.chrome { transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s; }
+.chrome.idle { opacity: 0; visibility: hidden; pointer-events: none; }
+#masthead.idle { transform: translateY(-10px); }
+#dock.idle { transform: translate(-50%, 10px); }
 
 #masthead {
-  position: fixed; top: max(1.1rem, env(safe-area-inset-top)); left: 1.4rem; z-index: 20;
+  position: fixed; top: max(1rem, env(safe-area-inset-top)); left: 1.2rem; right: 1.2rem; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
 }
 .wordmark-small {
-  font-size: 1.25rem; letter-spacing: 0.22em; font-weight: 500;
-  color: var(--ink); opacity: 0.75;
+  font-family: var(--hand); font-size: 2rem; letter-spacing: 0.04em; color: var(--ink);
+  text-shadow: 0 1px 12px rgba(246, 239, 226, 0.8);
 }
+body.night .wordmark-small { text-shadow: 0 1px 12px rgba(14, 18, 34, 0.7); }
+
+/* hand-drawn ink: irregular edges, hard offset shadow, press-in */
+.ink-icon { width: 24px; height: 24px; display: block; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+.ink-toggle {
+  appearance: none; width: 48px; height: 48px; display: grid; place-items: center; cursor: pointer;
+  color: var(--ink); background: var(--paper);
+  border: 2.5px solid var(--ink); border-radius: 14px 22px 12px 20px / 20px 12px 22px 14px;
+  box-shadow: 2.5px 3px 0 var(--ink);
+  transition: transform 0.35s var(--ease-spring), box-shadow 0.35s var(--ease-spring), background 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.ink-toggle:active { transform: translate(2px, 2.5px); box-shadow: 0.5px 0.5px 0 var(--ink); }
+.ink-toggle[aria-pressed="true"] { background: var(--sun); }
+.ink-toggle[aria-pressed="true"] .ink-icon { fill: currentColor; }
+.ink-toggle:focus-visible, .hint:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+
+/* hint: the caravan star, smallest mark of the route; sways while controls rest */
+.hint {
+  appearance: none; position: fixed; left: 50%; bottom: max(1.1rem, env(safe-area-inset-bottom)); z-index: 19;
+  margin-left: -26px; width: 52px; height: 52px; display: grid; place-items: center; cursor: pointer;
+  color: var(--ink); background: var(--paper);
+  border: 2.5px solid var(--ink); border-radius: 22px 12px 20px 14px / 12px 22px 14px 20px;
+  box-shadow: 3px 4px 0 var(--ink);
+  visibility: hidden; opacity: 0; transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hint .ink-icon { width: 26px; height: 26px; }
+body[data-chrome="off"] .hint { visibility: visible; opacity: 0.92; transform: none; animation: sway 4.2s ease-in-out infinite; }
+@keyframes sway { 0%, 100% { rotate: -5deg; } 50% { rotate: 5deg; } }
 
 #caption {
-  position: fixed; left: 0; right: 0; bottom: 15.5vh; z-index: 20;
+  position: fixed; left: 0; right: 0; bottom: calc(max(1.6rem, env(safe-area-inset-bottom)) + 108px); z-index: 20;
   text-align: center; font-style: italic;
   font-size: clamp(1.3rem, 5.4vw, 1.9rem); color: var(--ink);
   padding: 0 2rem; pointer-events: none;
@@ -52,7 +91,7 @@ body {
 #caption.show { opacity: 1; transform: none; }
 
 #whisper {
-  position: fixed; left: 0; right: 0; bottom: 11vh; z-index: 20;
+  position: fixed; left: 0; right: 0; bottom: calc(max(1.6rem, env(safe-area-inset-bottom)) + 76px); z-index: 20;
   text-align: center; font-size: clamp(0.95rem, 3.8vw, 1.1rem);
   color: var(--ink); opacity: 0; padding: 0.35rem 3rem; pointer-events: none;
   transition: opacity 1.4s ease;
@@ -62,57 +101,56 @@ body {
 #whisper.show { opacity: 1; }
 
 /* night chapter: light ink on dark scene */
-body.night { --ink: #f0e9d8; }
+body.night { --ink: #f0e9d8; --paper: #1d2340; --paper-dim: #2a3258; --sun: #c9923a; }
 body.night #caption { text-shadow: 0 1px 12px rgba(14, 18, 34, 0.6); }
 body.night #whisper {
   text-shadow: 0 1px 10px rgba(14, 18, 34, 0.65);
   background: radial-gradient(ellipse 60% 100% at 50% 50%, rgba(18, 22, 40, 0.38), rgba(18, 22, 40, 0));
 }
-body.night #dock {
-  background: rgba(20, 24, 44, 0.5);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-body.night .dot.active { background: rgba(240, 233, 216, 0.16); }
-
-/* dock */
+/* dock: a caravan route between four marks */
 #dock {
   position: fixed; left: 50%; bottom: max(1.6rem, env(safe-area-inset-bottom));
   transform: translateX(-50%); z-index: 20;
-  display: flex; gap: 0.4rem;
-  padding: 0.5rem 0.7rem; border-radius: 999px;
-  background: rgba(246, 239, 226, 0.5);
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 6px 24px rgba(43, 36, 25, 0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+  width: min(92vw, 400px); display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 0 4px;
 }
+#dock .route { position: absolute; left: 0; right: 0; top: 14px; width: 100%; height: 24px; pointer-events: none; overflow: visible; }
+#dock .route path { fill: none; stroke: var(--ink); stroke-width: 2.6; stroke-linecap: round; stroke-dasharray: 1 9; vector-effect: non-scaling-stroke; opacity: 0.8; }
 .dot {
-  appearance: none; border: 0; background: none; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 6px 10px 4px; border-radius: 14px;
-  transition: transform 0.5s var(--ease-spring), background 0.4s ease;
+  appearance: none; border: 0; background: none; cursor: pointer; position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; color: var(--ink);
   -webkit-tap-highlight-color: transparent;
 }
-.dot i {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--ink); opacity: 0.35; display: block;
-  transition: transform 0.5s var(--ease-spring), opacity 0.3s ease, background 0.4s ease;
+.dot b {
+  width: 56px; height: 56px; display: grid; place-items: center;
+  background: var(--paper); color: var(--ink);
+  border: 2.5px solid var(--ink); border-radius: 14px 22px 12px 20px / 20px 12px 22px 14px;
+  box-shadow: 3px 4px 0 var(--ink);
+  transition: transform 0.4s var(--ease-spring), box-shadow 0.4s var(--ease-spring), background 0.3s ease;
 }
+.dot:nth-of-type(2) b { border-radius: 20px 12px 22px 14px / 12px 22px 14px 20px; }
+.dot:nth-of-type(3) b { border-radius: 12px 20px 14px 22px / 22px 14px 20px 12px; }
+.dot:nth-of-type(4) b { border-radius: 22px 14px 20px 12px / 14px 20px 12px 22px; }
+.dot .ink-icon { width: 28px; height: 28px; }
 .dot span {
-  font-family: inherit; font-size: 0.72rem; letter-spacing: 0.08em;
-  color: var(--ink); opacity: 0; max-height: 0; overflow: hidden;
-  transition: opacity 0.4s ease, max-height 0.5s var(--ease-spring);
+  font-family: var(--hand); font-size: 1.05rem; line-height: 1; color: var(--ink);
+  opacity: 0; transition: opacity 0.3s ease;
+  text-shadow: 0 1px 8px var(--paper);
 }
-.dot:hover { transform: translateY(-2px); }
-.dot:active { transform: scale(0.9); }
-.dot.active { background: rgba(246, 239, 226, 0.6); }
-.dot.active i { opacity: 0.95; transform: scale(1.5); }
-.dot.active span { opacity: 0.7; max-height: 1.2em; }
+.dot:hover b { transform: translateY(-2px); }
+.dot:active b { transform: translate(2.5px, 3.5px); box-shadow: 0.5px 0.5px 0 var(--ink); }
+.dot.active b { background: var(--sun); transform: translate(1.5px, 2px); box-shadow: 1.5px 2px 0 var(--ink); }
+.dot.active .ink-icon { stroke-width: 2.6; }
+.dot.active span { opacity: 1; }
 
 /* keyboard focus */
-.dot:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
-}
+.dot:focus-visible b { outline: 3px solid var(--sun); outline-offset: 3px; }
 
 /* Idle wins over chapter copy's visible state. */
 #caption.show.idle,
 #whisper.show.idle { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome, .hint, .ink-toggle, .dot b, .dot span { transition: none !important; }
+  body[data-chrome="off"] .hint { animation: none; }
+}
