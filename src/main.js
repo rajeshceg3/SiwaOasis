@@ -213,11 +213,49 @@ const caption = document.getElementById("caption");
 const whisper = document.getElementById("whisper");
 const chrome = [...document.querySelectorAll(".chrome")];
 const dots = [...document.querySelectorAll(".dot")];
-let idleTimer, whisperTimer, lakeCueTimer;
-function wakeChrome() {
-  chrome.forEach((c) => c.classList.remove("idle"));
-  clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => chrome.forEach((c) => c.classList.add("idle")), 4200);
+let whisperTimer, lakeCueTimer;
+
+/* Chrome: the oasis leads. Controls greet, retire, and return when called. */
+const PIN_KEY = "siwa-chrome-pin";
+const TOP_ZONE = 96, BOTTOM_ZONE = 150, RETIRE_MS = 2600;
+const hint = document.getElementById("hint");
+const pinBtn = document.getElementById("pin-controls");
+let pinned = false, focusWithin = false, retireTimer;
+try { pinned = localStorage.getItem(PIN_KEY) === "1"; } catch (_) {}
+function paintPin() {
+  pinBtn.setAttribute("aria-pressed", String(pinned));
+  const label = pinned ? "Let controls retire" : "Keep controls visible";
+  pinBtn.setAttribute("aria-label", label); pinBtn.title = label;
+}
+function setChrome(on) {
+  chrome.forEach((c) => c.classList.toggle("idle", !on));
+  document.body.dataset.chrome = on || pinned ? "on" : "off";
+}
+function retireSoon() {
+  clearTimeout(retireTimer);
+  if (pinned) return;
+  retireTimer = setTimeout(() => { if (!focusWithin) setChrome(false); }, RETIRE_MS);
+}
+function wakeChrome() { setChrome(true); retireSoon(); }
+paintPin();
+document.body.dataset.chrome = "on";
+pinBtn.addEventListener("click", () => {
+  pinned = !pinned;
+  try { pinned ? localStorage.setItem(PIN_KEY, "1") : localStorage.removeItem(PIN_KEY); } catch (_) {}
+  paintPin();
+  if (pinned) { clearTimeout(retireTimer); setChrome(true); } else retireSoon();
+});
+hint.addEventListener("click", () => { wakeChrome(); (dots.find((d) => d.classList.contains("active")) || dots[0]).focus(); });
+document.addEventListener("pointermove", (e) => {
+  if (e.pointerType === "touch") return;
+  if (e.clientY < TOP_ZONE || e.clientY > innerHeight - BOTTOM_ZONE) wakeChrome();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !pinned) { focusWithin = false; clearTimeout(retireTimer); setChrome(false); document.activeElement?.blur?.(); }
+});
+for (const el of [document.getElementById("masthead"), document.getElementById("dock")]) {
+  el.addEventListener("focusin", () => { focusWithin = true; clearTimeout(retireTimer); setChrome(true); });
+  el.addEventListener("focusout", (e) => { if (!el.contains(e.relatedTarget)) { focusWithin = false; retireSoon(); } });
 }
 function setChapter(i) {
   if (i === chapter) return;
@@ -292,7 +330,7 @@ dock.addEventListener("keydown", (e) => {
 let px = 0, py = 0, dragging = false, moved = 0, downX = 0, downY = 0;
 let dockPointer = null;
 addEventListener("pointerdown", (e) => {
-  dragging = true; moved = 0; downX = e.clientX; downY = e.clientY; wakeChrome();
+  dragging = true; moved = 0; downX = e.clientX; downY = e.clientY;
   dockPointer = e.target.closest && e.target.closest("#dock") ? e.pointerId : null;
 });
 addEventListener("pointermove", (e) => {
