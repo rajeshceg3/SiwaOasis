@@ -1,3 +1,5 @@
+import {createSoundscape} from './soundscape.js';
+import {SOUND_PLACES} from './sound-places.js';
 import * as THREE from "three";
 
 /* ---------- tiny spring tween ---------- */
@@ -200,6 +202,8 @@ const CHAPTERS = [
     caption: "Beyond the dunes, the Oracle listens.", whisper: "Alexander came this far to ask one question." },
 ];
 let chapter = 0;
+const ambience=createSoundscape(SOUND_PLACES);window.siwaSound=ambience;
+const soundButton=document.getElementById('sound');soundButton.onclick=()=>{const on=ambience.toggle(chapter);soundButton.textContent=on?'Sound off':'Sound on';soundButton.setAttribute('aria-pressed',String(on));wakeChrome()};
 const target = {
   skyTop: new THREE.Color(CHAPTERS[0].skyTop), skyBot: new THREE.Color(CHAPTERS[0].skyBot),
   fog: new THREE.Color(CHAPTERS[0].fog[0]), far: new THREE.Color(CHAPTERS[0].far), near: new THREE.Color(CHAPTERS[0].near),
@@ -259,7 +263,7 @@ for (const el of [document.getElementById("masthead"), document.getElementById("
 }
 function setChapter(i) {
   if (i === chapter) return;
-  chapter = i;
+  chapter = i; ambience.setPlace(i);
   const c = CHAPTERS[i];
   target.skyTop.set(c.skyTop); target.skyBot.set(c.skyBot); target.fog.set(c.fog[0]);
   target.far.set(c.far); target.near.set(c.near); target.motes.set(c.motes[0]);
