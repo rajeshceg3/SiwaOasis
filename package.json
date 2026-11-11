@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/audio-structure.cjs && node scripts/browser-gate.cjs",
+    "build": "node --check src/main.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "25.17.0",
+    "playwright": "1.65.0"
+  }
+}
