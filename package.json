@@ -1,11 +1,19 @@
 {
-  "type": "module",
+  "name": "siwa-walk",
+  "version": "1.0.0",
+  "description": "A compact third-person exploration game inspired by Siwa Oasis.",
   "scripts": {
-    "test": "node scripts/audio-structure.cjs && node scripts/browser-gate.cjs",
-    "build": "node --check src/main.js"
+    "start": "node scripts/serve.mjs",
+    "test": "node scripts/game-gate.mjs"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "type": "module",
   "devDependencies": {
-    "puppeteer-core": "25.17.0",
-    "playwright": "1.65.0"
+    "puppeteer-core": "^25.18.1"
   }
 }
