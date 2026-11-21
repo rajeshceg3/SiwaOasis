@@ -4,7 +4,7 @@ export function finishArt(scene,W){
 // High frequency sand grain, larger aeolian ripples and soft albedo variations.
 const n=512,c=document.createElement('canvas');c.width=c.height=n;const x=c.getContext('2d'),im=x.createImageData(n,n),rough=x.createImageData(n,n);
 for(let y=0;y<n;y++)for(let xx=0;xx<n;xx++){const k=(y*n+xx)*4;const rip=Math.sin(y*.24+Math.sin(xx*.012)*2.8+Math.sin(y*.018)*2);const grain=Math.random();const patches=Math.sin(xx*.027)*Math.cos(y*.019)*5;const b=209+rip*7+patches+grain*20;im.data[k]=b;im.data[k+1]=b-5;im.data[k+2]=b-13;im.data[k+3]=255;rough.data[k]=rough.data[k+1]=rough.data[k+2]=205+grain*45;rough.data[k+3]=255;}
-x.putImageData(im,0,0);const tex=new T.CanvasTexture(c);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(100,100);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=8;
+x.putImageData(im,0,0);const tex=new T.CanvasTexture(c);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(100,100);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=2;
 const rc=document.createElement('canvas');rc.width=rc.height=n;rc.getContext('2d').putImageData(rough,0,0);const rt=new T.CanvasTexture(rc);rt.wrapS=rt.wrapT=T.RepeatWrapping;rt.repeat.set(100,100);
 W.sandMat.map=tex;W.sandMat.roughnessMap=rt;W.sandMat.bumpScale=.22;W.sandMat.needsUpdate=true;
 // Small smoothly warped water normals, created locally. No downloaded texture.

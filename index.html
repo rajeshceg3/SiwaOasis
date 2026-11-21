@@ -37,27 +37,32 @@ body{font-family:'DM Sans',system-ui,sans-serif;-webkit-user-select:none;user-se
 #againBtn{margin-top:1rem;appearance:none;border:0;border-radius:999px;background:#3c2410;color:#fdf3e3;font-family:'DM Sans',sans-serif;font-weight:500;font-size:.98rem;padding:.7rem 1.9rem;cursor:pointer;}
 #againBtn:focus-visible{outline:3px solid #3c2410;outline-offset:3px;}
 @media (prefers-reduced-motion:reduce){#dots i,#card{transition:none;}}
-[hidden]{display:none!important}.help{font-size:.75rem!important;line-height:1.6!important}#soundBtn{position:fixed;top:12px;left:12px;width:44px;height:44px;border:1px solid #fdf3e366;border-radius:50%;background:#2e1808b8;color:#fdf3e3;font:18px serif;cursor:pointer}#hint{position:fixed;top:72px;left:24px;right:24px;text-align:center;color:#fff4dc;text-shadow:0 1px 5px #321c08;font-size:12px;pointer-events:none}button{min-height:44px}#pauseBtn{opacity:1;width:44px;height:44px;background:#2e1808b8}#card{white-space:normal;text-align:center}#startCard p{max-width:28ch;margin-left:auto;margin-right:auto}</style></head><body>
-<canvas id="scene"></canvas>
+[hidden]{display:none!important}.help{font-size:.75rem!important;line-height:1.6!important}#soundBtn{position:fixed;top:12px;left:12px;width:44px;height:44px;border:1px solid #fdf3e366;border-radius:50%;background:#2e1808b8;color:#fdf3e3;font:18px serif;cursor:pointer}#hint{position:fixed;top:72px;left:24px;right:24px;text-align:center;color:#fff4dc;text-shadow:0 1px 5px #321c08;font-size:12px;pointer-events:none}button{min-height:44px}#pauseBtn{opacity:1;width:44px;height:44px;background:#2e1808b8}#card{white-space:normal;text-align:center}#startCard p{max-width:28ch;margin-left:auto;margin-right:auto}
+:root{--paper:#fff3da;--ink:#372d21}button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid #e5b65f;outline-offset:4px}#journeyBtn{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left));min-height:44px;width:104px;padding:12px;border:0;background:transparent;z-index:3;cursor:pointer}#journeyBtn #dots{justify-content:center}#soundBtn[aria-pressed="true"]{border:2px solid #ffdaa1}#soundBtn{left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top))}#pauseBtn{right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top))}.sheet{position:fixed;inset:0;z-index:20;background:#251e18a8;display:grid;place-items:center;padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));color:var(--ink)}.sheet section{background:var(--paper);border-radius:18px;padding:24px;width:min(100%,400px);max-height:100%;overflow:auto;box-shadow:0 15px 70px #0005}.sheet h2{font:italic 30px 'Instrument Serif',serif;margin-bottom:10px}.sheet p{font-size:14px;line-height:1.55;margin:10px 0}.sheet button,#doneCard button{display:block;min-height:44px;width:100%;padding:11px 16px;border:1px solid #69523450;border-radius:11px;background:transparent;color:var(--ink);font:inherit;margin-top:10px;cursor:pointer}.sheet #resumeBtn{background:#4b4533;color:var(--paper);border:0}.sheet details{margin:18px 0}.sheet details.place{margin:0}.place summary{font-weight:500;font-size:15px;min-height:44px;line-height:1.5}.place[open] summary{color:#7a5328}.sheet summary{padding:12px 0;cursor:pointer}.sheet label{display:flex;align-items:center;gap:10px;font-size:14px;min-height:44px}.sheet input{width:20px;height:20px}.place{padding:13px 0;border-top:1px solid #77604435}.place strong{font-size:15px}.place p{font-size:13px}.place button{font-size:13px}#menuStatus{color:#665a48}#bearing{position:fixed;left:50%;top:max(68px,calc(env(safe-area-inset-top) + 60px));transform:translateX(-50%);color:#fff5df;background:#302617dc;border-radius:20px;padding:9px 15px;max-width:85vw;text-align:center;font-size:12px;pointer-events:none}#loadStatus{position:fixed;inset:0;display:none;place-items:center;background:#f0c188;color:#372d21;z-index:50;padding:30px;text-align:center}#loadStatus.show{display:grid}#loadStatus button{display:block;min-height:44px;padding:12px;margin-top:15px}#hint{background:#2b231ba8;left:50%;right:auto;transform:translateX(-50%);width:max-content;max-width:85vw;border-radius:18px;padding:8px 13px;line-height:1.5}#doneCard #wanderBtn{background:#f6e6c4}#doneCard #againBtn{background:#3c2410;color:#fff3da;border-color:#fff3da70}#startCard button:disabled{opacity:.65}@media(max-height:480px){.sheet section{padding:14px 20px}.sheet h2{font-size:24px}.sheet button{margin-top:6px}#start{padding-bottom:35px}#startCard h1{font-size:30px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style></head><body>
+<canvas id="scene" aria-label="Siwa Oasis walking world"></canvas>
 <div id="fallback"><p>Siwa Oasis needs WebGL, which this browser could not provide.</p></div>
-<div id="hud" aria-hidden="true"><div id="dots"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+<button id="journeyBtn" aria-label="Journey, 0 of 6 places found" hidden><div id="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
 <div id="card" role="status" aria-live="polite"></div>
 <button id="pauseBtn" aria-pressed="false" aria-label="Pause" hidden><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3" y="2" width="3.4" height="12" rx="1"/><rect x="9.6" y="2" width="3.4" height="12" rx="1"/></svg></button>
 <button id="soundBtn" aria-label="Turn sound on" aria-pressed="false" hidden>♫</button><div id="hint" hidden>Follow the palms. Find six quiet places.</div><div id="joy"><div id="nub"></div></div>
 <div id="start" role="dialog" aria-modal="true" aria-labelledby="startTitle">
   <div id="startCard">
     <h1 id="startTitle">Siwa Oasis</h1>
-    <p>Walk among palms, salt water and ancient earth. Find your way to Shali.</p>
-    <p class="help">Left thumb to walk · Drag to look<br>WASD on a keyboard</p><button id="beginBtn">Begin the walk</button>
+    <p>Find six quiet places among palms, salt water and ancient earth. Shali waits beyond.</p>
+    <p class="help" id="startHelp"></p><button id="beginBtn" disabled>Preparing the evening…</button>
   </div>
 </div>
 <div id="done" role="dialog" aria-modal="true" aria-labelledby="doneTitle" hidden>
   <div id="doneCard">
     <h2 id="doneTitle">Siwa, beneath your feet.</h2>
     <p id="doneStats"></p>
-    <button id="againBtn">Walk again</button>
+    <button id="wanderBtn">Keep wandering</button><button id="againBtn">Walk again</button>
   </div>
 </div>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script><script type="module" src="./game.js"></script>
+<div id="menu" class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle" hidden><section><h2 id="menuTitle">A moment in Siwa</h2><p id="menuStatus"></p><button id="resumeBtn">Resume the walk</button><div id="menuMain"><button id="journalBtn">Your journey</button><details><summary>Controls & comfort</summary><p id="controlsHelp"></p><label><input id="motionToggle" type="checkbox"> Still world, less motion</label><p id="qualityStatus">Quality adjusts to your device.</p><p>Your journey is saved on this device.</p></details><button id="pathBtn">Return to the open path</button><button id="newBtn">Start a fresh walk</button></div><div id="journal" hidden></div><div id="confirmReset" hidden><p>Start over? Your six discoveries and saved walk will be cleared.</p><button id="confirmBtn">Yes, start fresh</button><button id="cancelResetBtn">Keep this walk</button></div></section></div>
+<div id="bearing" role="status" hidden></div><div id="loadStatus" role="status"></div>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script><script type="module" src="./boot.js"></script>
 </body></html>
 

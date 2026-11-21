@@ -4,7 +4,7 @@
    olives, egrets and dragonflies are new for Siwa. */
 import * as T from 'three';
 export function buildWorld(scene){
-let seed=733;const rand=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646},range=(a,b)=>a+(b-a)*rand();
+const lowDetailSwitches=[];let seed=733;const rand=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646},range=(a,b)=>a+(b-a)*rand();
 const v=(x,y,z)=>new T.Vector3(x,y,z);
 const mat=(color,roughness=.92,flat=true)=>new T.MeshStandardMaterial({color,roughness,flatShading:flat});
 const M4=(x,y,z,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>new T.Matrix4().compose(v(x,y,z),new T.Quaternion().setFromEuler(new T.Euler(rx,ry,rz)),v(sx,sy,sz));
@@ -94,13 +94,16 @@ const cv=document.createElement('canvas');cv.width=cv.height=512;const cx=cv.get
 const id=cx.createImageData(512,512);for(let y=0;y<512;y++)for(let x=0;x<512;x++){const n=125+Math.sin(y*.29+Math.sin(x*.014)*5)*12+Math.random()*22;const k=(y*512+x)*4;id.data[k]=id.data[k+1]=id.data[k+2]=n;id.data[k+3]=255;}cx.putImageData(id,0,0);
 const sandTex=new T.CanvasTexture(cv);sandTex.wrapS=sandTex.wrapT=T.RepeatWrapping;sandTex.repeat.set(95,95);
 const sandMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.96,bumpMap:sandTex,bumpScale:.13});
-const floor=new T.Mesh(geo,sandMat);floor.receiveShadow=true;scene.add(floor);
+const floor=new T.Group();floor.material=sandMat;floor.geometry=geo;scene.add(floor);
+// Identical terrain triangles in local tiles: no change to ground sampling.
+const gi=geo.index, gp=geo.attributes.position;for(let tz=0;tz<300;tz+=30)for(let tx=0;tx<300;tx+=30){const ix=[];for(let z=tz;z<tz+30;z++)for(let x=tx;x<tx+30;x++){const off=(z*300+x)*6;for(let j=0;j<6;j++)ix.push(gi.getX(off+j));}const tile=new T.BufferGeometry();for(const n of ['position','normal','color','uv'])tile.setAttribute(n,geo.attributes[n]);tile.setIndex(ix);const box=new T.Box3(),q=v(0,0,0);for(const i of ix)box.expandByPoint(q.fromBufferAttribute(gp,i));tile.boundingBox=box;tile.boundingSphere=box.getBoundingSphere(new T.Sphere());const mesh=new T.Mesh(tile,sandMat);mesh.receiveShadow=true;floor.add(mesh);}
+lowDetailSwitches.push(()=>{const simple=new T.MeshLambertMaterial({vertexColors:true,map:sandMat.map,color:sandMat.color});floor.children.forEach(m=>m.material=simple);});
 const colliders=[];
 const dummy=new T.Object3D(),up=v(0,1,0);
 const batches={};function inst(key,geoI,color,max=3000,opts={}){if(!batches[key]){const mesh=new T.InstancedMesh(geoI,mat(color,opts.rough??.92),max);mesh.count=0;mesh.frustumCulled=false;mesh.castShadow=true;scene.add(mesh);batches[key]=mesh;}return batches[key];}
 function stamp(key,geoI,color,p,s,rot){const b=inst(key,geoI,color);dummy.position.copy(p);dummy.scale.copy(s);dummy.quaternion.copy(rot||new T.Quaternion());dummy.updateMatrix();b.setMatrixAt(b.count++,dummy.matrix);}
 /* Rocks and dry shrubs on the open ground. */
-const rockGeo=new T.IcosahedronGeometry(1,4);
+const rockGeo=new T.IcosahedronGeometry(1,1);
 {const rp=rockGeo.attributes.position;for(let i=0;i<rp.count;i++){const x=rp.getX(i),y=rp.getY(i),z=rp.getZ(i),s=1+Math.sin(x*5+z*7)*Math.sin(y*6)*.14+Math.sin(x*17+y*11+z*9)*.035;rp.setXYZ(i,x*s,y*s,z*s);}rockGeo.computeVertexNormals();}
 const shrubGeo=new T.IcosahedronGeometry(.5,1);
 {const sp=shrubGeo.attributes.position;
@@ -108,7 +111,7 @@ for(let i=0;i<sp.count;i++){const px=sp.getX(i),py=sp.getY(i),pz=sp.getZ(i);cons
 shrubGeo.computeVertexNormals();}
 function farFromSites(x,z){return Math.hypot(x-GROVE.x,z-GROVE.z)>46&&Math.hypot((x-LAKE.x)/1.35,z-LAKE.z)>66&&Math.hypot(x-SHALI.x,z-SHALI.z)>30&&Math.hypot(x-ORACLE.x,z-ORACLE.z)>20;}
 for(let i=0;i<110;i++){const a=range(0,6.28),r=range(18,158),x=Math.sin(a)*r,z=Math.cos(a)*r;if(!farFromSites(x,z)||Math.hypot(x,z-76)<14)continue;const s=range(.3,1.4);stamp('rock',rockGeo,i%3?'#8a6a4c':'#6e5238',v(x,terrain(x,z)-s*.35,z),v(s*1.3,s*.7,s),new T.Quaternion().setFromEuler(new T.Euler(range(0,3),range(0,3),range(0,3))));}
-for(let i=0;i<90;i++){const a=range(0,6.28),r=range(24,158),x=Math.sin(a)*r,z=Math.cos(a)*r;if(!farFromSites(x,z))continue;const s=range(.4,.9);for(let k=0;k<3;k++){stamp('shrub',rockGeo,k?'#7d6b3f':'#6b5c33',v(x+range(-.4,.4),terrain(x,z)+.16*s,z+range(-.4,.4)),v(s*.45,s*.18,s*.45),new T.Quaternion().setFromEuler(new T.Euler(range(-.15,.15),range(0,6),range(-.15,.15))));}}
+for(let i=0;i<90;i++){const a=range(0,6.28),r=range(24,158),x=Math.sin(a)*r,z=Math.cos(a)*r;if(!farFromSites(x,z))continue;const s=range(.4,.9);for(let k=0;k<3;k++){stamp('shrub',shrubGeo,k?'#7d6b3f':'#6b5c33',v(x+range(-.4,.4),terrain(x,z)+.16*s,z+range(-.4,.4)),v(s*.45,s*.18,s*.45),new T.Quaternion().setFromEuler(new T.Euler(range(-.15,.15),range(0,6),range(-.15,.15))));}}
 /* Salt crust mounds along the lake shore. */
 const saltGeo=new T.IcosahedronGeometry(.6,1);
 {const sp=saltGeo.attributes.position;for(let i=0;i<sp.count;i++){const px=sp.getX(i),py=sp.getY(i),pz=sp.getZ(i);const j=.8+.45*Math.sin(px*23+py*31+pz*27);sp.setXYZ(i,px*j,Math.abs(py*j)*.55,pz*j);}saltGeo.computeVertexNormals();}
@@ -159,39 +162,40 @@ gl_FragColor=vec4(col,.96);}`}));
 pool.rotation.x=-Math.PI/2;pool.position.set(SPRING.x,springY+.82,SPRING.z);scene.add(pool);
 
 /* ---------- Date palms (Siwa's palm sea), merged into one mesh ---------- */
-{const P=[],Cc=[],I=[];let vi=0;const tc=new T.Color(),tc2=new T.Color();
-const pushV=(p,c)=>{P.push(p.x,p.y,p.z);Cc.push(c.r,c.g,c.b);return vi++;};
+{const P=[],Cc=[],UV=[],I=[],lowI=[],PA=[],PM=[],PR=[],PC=[];let vi=0,frondSerial=0;const trunkStates=[];const tc=new T.Color(),tc2=new T.Color();
+const pushV=(p,c,u=.001,w=.999)=>{P.push(p.x,p.y,p.z);Cc.push(c.r,c.g,c.b);UV.push(u,w);PA.push(p.x,p.y,p.z);PR.push(p.x,p.y,p.z);PM.push(0,0);PC.push(p.x,p.y,p.z);return vi++;};
 function addGeo(g,m4,color){const pa=g.attributes.position,nv=pa.count,base=vi,ve=new T.Vector3();tc.set(color);for(let i=0;i<nv;i++){ve.fromBufferAttribute(pa,i).applyMatrix4(m4);pushV(ve,tc);}const ia=g.index;if(ia)for(let i=0;i<ia.count;i++)I.push(base+ia.getX(i));else for(let i=0;i<nv;i++)I.push(base+i);}
-function frond(top,yaw0,e0,e1,L,w0,c0,c1){
-const dx=Math.cos(yaw0),dz=Math.sin(yaw0),px=-dz,pz=dx;
-const path=[];let x=top.x,y=top.y,z=top.z;const S=24;
-for(let k=0;k<=S;k++){path.push(v(x,y,z));const t=k/S,a=e0+(e1-e0)*t*t*(3-2*t);x+=dx*Math.cos(a)*L/S;y+=Math.sin(a)*L/S;z+=dz*Math.cos(a)*L/S;}
-for(let k=0;k<S;k++){
- const t=k/S,A=path[k],B=path[k+1];tc.copy(c0).lerp(c1,t);tc2.copy(tc).multiplyScalar(.75);
- const rr=.018*(1-t)+.003;
- const i0=pushV(v(A.x+px*rr,A.y,A.z+pz*rr),tc),i1=pushV(v(A.x-px*rr,A.y,A.z-pz*rr),tc2),i2=pushV(v(B.x+px*rr,B.y,B.z+pz*rr),tc),i3=pushV(v(B.x-px*rr,B.y,B.z-pz*rr),tc2);I.push(i0,i1,i2,i1,i3,i2);
- if(k<2)continue;
- for(const side of [-1,1]){
-  const len=(.27+Math.sin(Math.PI*t)*.66)*(L/3.6),ww=.088*(1-t*.42),bend=.04+len*.20;
-  const tip=v(A.x+px*len*side-dx*len*.28,A.y-bend,A.z+pz*len*side-dz*len*.28);
-  const mid=v((A.x+tip.x)*.5,(A.y+tip.y)*.5+.035,(A.z+tip.z)*.5);
-  const root=pushV(A,tc),l=pushV(v(mid.x-dx*ww,mid.y,mid.z-dz*ww),tc2),ridge=pushV(v(mid.x,mid.y+.025,mid.z),tc),r=pushV(v(mid.x+dx*ww,mid.y,mid.z+dz*ww),tc2),end=pushV(tip,tc2);
-  I.push(root,l,ridge,root,ridge,r,l,end,ridge,ridge,end,r);
- }
-}}
-function palm(x,z,h,leanA,leanAmt,sd){
+function frond(top,yaw0,e0,e1,L,w0,c0,c1){const beginIndex=I.length;
+const phase=Math.sin(yaw0*13.71+top.x*1.7+top.z*.91),curl=Math.sin(yaw0*7.13+top.z*2.1)*.34;
+L*=.84+.10*(phase*.5+.5);e0+=phase*.16;e1+=phase*.27-.10;
+// Staggered, unequal pinnae follow a bowed rachis. Variation is local and deterministic.
+const spine=[];let x=top.x,y=top.y,z=top.z;
+const bow=.16*Math.sin(phase*7+yaw0*3);
+for(let k=0;k<=24;k++){const t=k/24,a=e0+(e1-e0)*t*t*(3-2*t),az=yaw0+curl*t*t+bow*Math.sin(Math.PI*t);spine.push(v(x,y,z));x+=Math.cos(az)*Math.cos(a)*L/24;y+=Math.sin(a)*L/24;z+=Math.sin(az)*Math.cos(a)*L/24;}
+const point=t=>{const q=Math.min(23.999,Math.max(0,t)*24),i=Math.floor(q);return spine[i].clone().lerp(spine[i+1],q-i);};
+const mark=(id,centre,root,kind)=>{PA.splice(id*3,3,centre.x,centre.y,centre.z);PR.splice(id*3,3,root.x,root.y,root.z);PM.splice(id*2,2,4.,kind);PC.splice(id*3,3,top.x,top.y,top.z);return id;};
+const tangent=t=>{const d=point(Math.min(1,t+.025)).sub(point(Math.max(0,t-.025)));return Math.atan2(d.z,d.x);};
+// One curved surface carries the same filtered pinna silhouette at every distance.
+let prev=null;const halfWidth=.68*(L/3.6);
+for(let k=0;k<=12;k++){const t=k/12,p=point(t),a=tangent(t),row=[];tc.copy(c0).lerp(c1,t);for(let j=0;j<=2;j++){const side=j-1,q=v(p.x-Math.sin(a)*halfWidth*side,p.y-Math.abs(side)*(.16+.36*t),p.z+Math.cos(a)*halfWidth*side);const id=pushV(q,tc,j/2,t);mark(id,p,p,2);row.push(id);}if(prev)for(let j=0;j<2;j++)I.push(prev[j],prev[j+1],row[j],prev[j+1],row[j+1],row[j]);prev=row;}
+frondSerial++;lowI.push(...I.slice(beginIndex));}
+
+function palm(x,z,h,leanA,leanAmt,sd){const trunkStart=I.length,trunkId=trunkStates.length;
 const y0=terrain(x,z)-.15;colliders.push({x,z,r:.48});
-const rings=60,sides=12;let prev=null;
+const rings=20,sides=8;let prev=null;
 for(let r=0;r<=rings;r++){const t=r/rings,cx=x+Math.cos(leanA)*leanAmt*t*t*h,cz=z+Math.sin(leanA)*leanAmt*t*t*h,y=y0+t*h,rad=(.25-.10*t)*(1+.035*Math.sin(t*150+sd*7)),ring=[];
 for(let s=0;s<sides;s++){const a=s/sides*Math.PI*2;tc.setHSL(.07,.33,.30+.038*Math.sin(t*150+sd*7)+.018*Math.sin(s*3));ring.push(pushV(v(cx+Math.cos(a)*rad,y,cz+Math.sin(a)*rad),tc));}
 if(prev)for(let s=0;s<sides;s++){const s2=(s+1)%sides;I.push(prev[s],prev[s2],ring[s],prev[s2],ring[s2],ring[s]);}prev=ring;}
-const top=v(x+Math.cos(leanA)*leanAmt*h,y0+h,z+Math.sin(leanA)*leanAmt*h),g0=new T.Color('#244a27'),g1=new T.Color('#8ba557'),b0=new T.Color('#8a6a3c'),b1=new T.Color('#4a3418');
-const NF=37;
+for(let i=I[trunkStart];i<vi;i++){PC.splice(i*3,3,x,y0,z);PR.splice(i*3,3,x+Math.cos(leanA)*leanAmt*h,y0+h,z+Math.sin(leanA)*leanAmt*h);PM.splice(i*2,2,trunkId,4);}
+trunkStates.push({base:v(x,y0,z),top:v(x+Math.cos(leanA)*leanAmt*h,y0+h,z+Math.sin(leanA)*leanAmt*h),hidden:false,exitAt:0,amount:0});lowI.push(...I.slice(trunkStart));const top=v(x+Math.cos(leanA)*leanAmt*h,y0+h,z+Math.sin(leanA)*leanAmt*h),g0=new T.Color('#244a27'),g1=new T.Color('#8ba557'),b0=new T.Color('#8a6a3c'),b1=new T.Color('#4a3418');
+const NF=25;
 for(let j=0;j<NF;j++){const yaw=j/NF*6.28+sd+range(-.12,.12),tier=j%3;
-if(tier===0)frond(top,yaw,1.15,.15,(2.6+.9*rand())*(h/5),.24,g0,g1);
-else if(tier===1)frond(top,yaw,.72,-.5,(2.8+1.0*rand())*(h/5),.26,g0,g1);
+if(tier===0)frond(top,yaw,1.05,-.48,(2.6+.9*rand())*(h/5),.24,g0,g1);
+else if(tier===1)frond(top,yaw,.62,-.92,(2.8+1.0*rand())*(h/5),.26,g0,g1);
 else frond(top,yaw,.3,-1.25,(2.9+1.1*rand())*(h/5),.28,g0,g1);}
-for(let j=0;j<8;j++)frond(top,j/8*6.28+sd+.3,-.55,-2.05,1.7*(h/5),.13,b0,b1);
+// Keep the seeded world sequence unchanged when reducing crown frond count.
+for(let j=NF;j<37;j++){range(-.12,.12);rand();}
+for(let j=0;j<4;j++)frond(top,j/4*6.28+sd+.3,-.55,-2.05,1.7*(h/5),.13,b0,b1);
 if(rand()<.75){const m=new T.Matrix4();for(const [bx2,bz2] of [[.16,.05],[-.13,-.14]])for(let d=0;d<16;d++){const a=range(0,6.28),rr=range(.04,.24);m.makeTranslation(top.x+bx2+Math.cos(a)*rr,top.y-range(.15,.62),top.z+bz2+Math.sin(a)*rr);addGeo(new T.SphereGeometry(.078,5,4),m,rand()<.3?'#d8902e':'#c8781e');}}}
 /* the grove: dense date palms around the heart of the oasis */
 let placed=0,guard=0;
@@ -205,10 +209,22 @@ palm(x+range(-2,2),z+range(-2,2),range(4.6,6.6),range(0,6.28),range(.06,.16),ran
 /* two landmark leaners over the spring */
 palm(22,35,6.4,Math.atan2(40-35,28-22),.24,3.3);
 palm(34,46,5.8,Math.atan2(40-46,28-34)+.4,.2,1.7);
-const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(new Float32Array(P),3));pg.setAttribute('color',new T.BufferAttribute(new Float32Array(Cc),3));pg.setIndex(I);pg.computeVertexNormals();
-const pm=new T.MeshStandardMaterial({vertexColors:true,roughness:.91,side:T.DoubleSide});
-var palmTime={value:0};pm.onBeforeCompile=sh=>{sh.uniforms.palmTime=palmTime;sh.fragmentShader=sh.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nfloat cameraFade=smoothstep(2.5,4.7,length(vViewPosition));float screenPattern=fract(dot(floor(gl_FragCoord.xy),vec2(.75487766,.56984029)));if(screenPattern>cameraFade)discard;');sh.vertexShader='uniform float palmTime;\nvarying float vLeafHash;\n'+sh.vertexShader;sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nfloat swayWeight=smoothstep(1.0,7.5,position.y);transformed.x+=sin(palmTime*.48+position.z*.21)*swayWeight*.065;transformed.z+=cos(palmTime*.38+position.x*.19)*swayWeight*.045;vLeafHash=fract(sin(dot(floor(position.xz*2.3)+floor(position.y*3.1),vec2(12.9898,78.233)))*43758.5453);');sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform float palmTime;\nvarying float vLeafHash;').replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=1.+.055*sin(palmTime*1.7+vLeafHash*6.283);');};
-const palms=new T.Mesh(pg,pm);palms.castShadow=true;scene.add(palms);}
+const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(new Float32Array(P),3));pg.setAttribute('color',new T.BufferAttribute(new Float32Array(Cc),3));pg.setAttribute('uv',new T.BufferAttribute(new Float32Array(UV),2));pg.setAttribute('palmCentre',new T.BufferAttribute(new Float32Array(PA),3));pg.setAttribute('palmRoot',new T.BufferAttribute(new Float32Array(PR),3));pg.setAttribute('palmCrown',new T.BufferAttribute(new Float32Array(PC),3));pg.setAttribute('palmMeta',new T.BufferAttribute(new Float32Array(PM),2));pg.setIndex(I);pg.computeVertexNormals();
+// Painted locally, no downloaded assets. Mipmaps keep pinnae connected at distance.
+const leafCanvas=document.createElement('canvas');leafCanvas.width=512;leafCanvas.height=1024;const lc=leafCanvas.getContext('2d');lc.fillStyle='white';lc.strokeStyle='white';lc.lineWidth=4;lc.beginPath();lc.moveTo(256,95);lc.lineTo(256,958);lc.stroke();
+for(let k=0;k<22;k++)for(const side of [-1,1]){const t=.10+k*.038+(side>0?.015:0),y=t*1024,n=Math.sin(k*6.17+side*2.1),span=(.10+Math.pow(Math.sin(Math.PI*t),.9)*.84)*(1+.06*n)*245,back=(.035+.13*t)*1024,w=6+Math.sin(Math.PI*t)*9,tx=256+side*span,ty=y-back;lc.beginPath();lc.moveTo(256,y-2);lc.quadraticCurveTo(256+side*span*.45,y-back*.3-w,tx,ty);lc.quadraticCurveTo(256+side*span*.48,y-back*.2+w*.48,256,y+3);lc.fill();}
+const leafTex=new T.CanvasTexture(leafCanvas);leafTex.colorSpace=T.NoColorSpace;leafTex.anisotropy=4;leafTex.flipY=false;
+const pm=new T.MeshLambertMaterial({vertexColors:true,emissive:0x33421a,emissiveIntensity:.5,side:T.DoubleSide,alphaTest:.22,alphaToCoverage:true});
+const trunkBytes=new Uint8Array(128*4),trunkTexture=new T.DataTexture(trunkBytes,128,1);trunkTexture.needsUpdate=true;let trunkUpdatedAt=0;
+function updateTrunkVisibility(camera,focus){const now=performance.now()*.001;if(now-trunkUpdatedAt<.001)return;const dt=Math.min(.08,now-trunkUpdatedAt);trunkUpdatedAt=now;const cx=camera.position.x,cz=camera.position.z,rx=focus.x-cx,rz=focus.z-cz,rr=Math.max(.001,rx*rx+rz*rz);
+for(let id=0;id<trunkStates.length;id++){const st=trunkStates[id];let nearLine=1e9,nearCamera=1e9;for(let j=0;j<7;j++){const t=j/6,ax=st.base.x+(st.top.x-st.base.x)*t*t,az=st.base.z+(st.top.z-st.base.z)*t*t,q=((ax-cx)*rx+(az-cz)*rz)/rr;nearCamera=Math.min(nearCamera,Math.hypot(ax-cx,az-cz));if(q>-.2&&q<1.1){const c=Math.max(0,Math.min(1,q));nearLine=Math.min(nearLine,Math.hypot(ax-cx-c*rx,az-cz-c*rz));}}
+const hit=nearLine<1.1||nearCamera<2.5,clear=nearLine>1.45&&nearCamera>2.9;if(hit){st.hidden=true;st.exitAt=0;}else if(st.hidden){if(clear){if(!st.exitAt)st.exitAt=now;if(now-st.exitAt>.35)st.hidden=false;}else st.exitAt=0;}const target=st.hidden?1:0;st.amount=Math.max(0,Math.min(1,st.amount+(target?1:-1)*dt/(target?.20:.38)));trunkBytes[id*4]=Math.round(st.amount*255);}trunkTexture.needsUpdate=true;}
+var palmTime={value:0};const palmFocus={value:new T.Vector3()},palmViewport={value:600},palmLow={value:0};lowDetailSwitches.push(()=>palmLow.value=1);pm.onBeforeCompile=sh=>{sh.uniforms.palmTime=palmTime;sh.uniforms.palmFocus=palmFocus;sh.uniforms.palmViewport=palmViewport;sh.uniforms.palmLeafTexture={value:leafTex};sh.uniforms.palmTrunkTexture={value:trunkTexture};sh.fragmentShader='uniform sampler2D palmLeafTexture;varying vec2 vPalmUv;varying float vPalmKind;varying float vPalmHide;\n'+sh.fragmentShader;sh.fragmentShader=sh.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nif(vPalmKind>1.5&&vPalmKind<2.5){float coverage=texture2D(palmLeafTexture,vPalmUv).a;float edge=max(fwidth(coverage),.015);diffuseColor.a*=smoothstep(.22-edge,.22+edge,coverage);}if(vPalmKind>3.5){vec2 cell=mod(floor(gl_FragCoord.xy),4.);float d=mod(cell.x*2.+cell.y*3.,4.)*4.+mod(cell.x+cell.y*2.,4.);if((d+.5)/16.<vPalmHide)discard;}');sh.vertexShader='uniform sampler2D palmTrunkTexture;uniform vec3 palmFocus;varying float vPalmHide;varying vec2 vPalmUv;varying float vPalmKind;attribute vec3 palmCrown;attribute vec3 palmRoot;attribute vec2 palmMeta;uniform float palmTime;\n'+sh.vertexShader;sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPalmUv=uv;vPalmKind=palmMeta.y;vPalmHide=0.;if(palmMeta.y>3.5)vPalmHide=texture2D(palmTrunkTexture,vec2((palmMeta.x+.5)/128.,.5)).r;float swayWeight=smoothstep(1.0,7.5,position.y);transformed.x+=sin(palmTime*.48+position.z*.21)*swayWeight*.065;transformed.z+=cos(palmTime*.38+position.x*.19)*swayWeight*.045;');};
+const palmDepth=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide,alphaTest:.22});palmDepth.onBeforeCompile=pm.onBeforeCompile;
+// Keep the authored palm geometry, but cull it in small spatial tiles instead
+// of drawing the entire grove whenever a single far palm enters the frustum.
+const lowVertices=new Set(lowI);const tiles=new Map();for(let i=0;i<I.length;i+=3){const a=I[i]*3,b=I[i+1]*3,c=I[i+2]*3,key=Math.floor((P[a]+P[b]+P[c])/72)+','+Math.floor((P[a+2]+P[b+2]+P[c+2])/72);if(!tiles.has(key))tiles.set(key,[]);tiles.get(key).push(I[i],I[i+1],I[i+2]);}
+for(const index of tiles.values()){const g=new T.BufferGeometry();for(const name of ['position','normal','color','uv','palmCentre','palmRoot','palmMeta','palmCrown'])g.setAttribute(name,pg.attributes[name]);g.setIndex(index);const box=new T.Box3(),q=v(0,0,0);for(const i of index)box.expandByPoint(q.fromBufferAttribute(pg.attributes.position,i));g.boundingBox=box;g.boundingSphere=box.getBoundingSphere(new T.Sphere());g.boundingSphere.radius+=1.;const lowIndex=[];for(let i=0;i<index.length;i+=3)if(lowVertices.has(index[i]))lowIndex.push(index[i],index[i+1],index[i+2]);lowDetailSwitches.push(()=>g.setIndex(lowIndex));const palms=new T.Mesh(g,pm);palms.onBeforeRender=(renderer,scene,camera)=>{const focus=scene.getObjectByName('palmFocusTarget');if(focus)palmFocus.value.copy(focus.position);updateTrunkVisibility(camera,palmFocus.value);const size=renderer.getDrawingBufferSize(new T.Vector2());palmViewport.value=size.y;};palms.customDepthMaterial=palmDepth;palms.castShadow=true;scene.add(palms);}}
 
 /* ---------- Olive rows between grove and lake ---------- */
 {const trunkGeo=new T.CylinderGeometry(.14,.22,1.4,7);
@@ -324,7 +340,7 @@ for(let i=wallParts.length-1;i>=0;i--){const part=wallParts[i],params=part.geo.p
 shaliGroup.userData.capChecks={checked,seated,removed};}
 const shaliMesh=new T.Mesh(mergeParts(wallParts),mudMat);shaliMesh.castShadow=shaliMesh.receiveShadow=true;shaliGroup.add(shaliMesh);cameraSolids.push(shaliMesh);
 /* Attach every opening to actual deformed wall pixels with a surface ray. */
-const anchorRay=new T.Raycaster();shaliMesh.updateMatrixWorld(true);apertures.sort((a,b)=>Math.hypot(a.point.x,a.point.z+102)-Math.hypot(b.point.x,b.point.z+102));
+const windowGroups=[];const anchorRay=new T.Raycaster();shaliMesh.updateMatrixWorld(true);apertures.sort((a,b)=>Math.hypot(a.point.x,a.point.z+102)-Math.hypot(b.point.x,b.point.z+102));
 for(const ap of apertures){const n=v(Math.sin(ap.rot),0,Math.cos(ap.rot));anchorRay.set(ap.point.clone().addScaledVector(n,3.5),n.clone().negate());anchorRay.far=5.0;const hits=anchorRay.intersectObject(shaliMesh,false);if(!hits.length)continue;
 const hit=hits[0];if(Math.abs(hit.face.normal.y)>.25||windowCuts.length>=48)continue;
 const point=hit.point.clone(),normal=hit.face.normal.clone();normal.y=0;normal.normalize();
@@ -337,7 +353,10 @@ const inner=mat(ap.lit?'#a58a64':'#786044',1);
 const back=new T.Mesh(new T.PlaneGeometry(.34,.5),new T.MeshBasicMaterial({color:ap.lit?'#b9813e':'#201a14'}));back.position.z=-.26;well.add(back);
 for(const side of [-1,1]){const reveal=new T.Mesh(new T.BoxGeometry(.025,.50,.27),inner);reveal.position.set(side*.177,0,-.135);well.add(reveal);}
 for(const side of [-1,1]){const reveal=new T.Mesh(new T.BoxGeometry(.36,.025,.27),inner);reveal.position.set(0,side*.255,-.135);well.add(reveal);}
-const lintel=new T.Mesh(new T.BoxGeometry(.43,.065,.09),mat('#8d7656'));lintel.position.set(0,.288,-.015);lintel.castShadow=true;well.add(lintel);shaliGroup.add(well);}
+const lintel=new T.Mesh(new T.BoxGeometry(.43,.065,.09),mat('#8d7656'));lintel.position.set(0,.288,-.015);lintel.castShadow=true;well.add(lintel);shaliGroup.add(well);windowGroups.push(well);}
+// Batch static reveal/back/lintel pieces by shading kind, retaining vertex colours.
+// Forty-eight openings no longer require nearly three hundred submissions.
+{const batches=new Map();scene.updateMatrixWorld(true);for(const group of windowGroups){group.traverse(o=>{if(!o.isMesh)return;const key=o.material.type+':'+o.castShadow;if(!batches.has(key))batches.set(key,{parts:[],basic:o.material.isMeshBasicMaterial,shadow:o.castShadow});batches.get(key).parts.push({geo:o.geometry,m:o.matrixWorld.clone(),c:o.material.color});});shaliGroup.remove(group);}for(const b of batches.values()){const material=b.basic?new T.MeshBasicMaterial({vertexColors:true}):new T.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true});const mesh=new T.Mesh(mergeParts(b.parts),material);mesh.castShadow=b.shadow;scene.add(mesh);}}
 /* Subtract each recessed opening from the actual triangle soup. Every generated
    vertex carries interpolated normal, color and UV, so all passes and raycasts
    share exactly the same masonry edge. */
@@ -631,5 +650,5 @@ const gg=new T.BufferGeometry();gg.setAttribute('position',new T.Float32BufferAt
 function seq(t,durs){let tot=0;for(const d of durs)tot+=d;let u=((t%tot)+tot)%tot;for(let i=0;i<durs.length;i++){if(u<durs[i])return[i,u/durs[i]];u-=durs[i];}return[durs.length-1,1];}
 const easeU=u=>smoothU(Math.min(1,Math.max(0,u)));
 const ahr=(u,a,r)=>u<a?easeU(u/a):u>1-r?easeU((1-u)/r):1;
-return { cameraSolids,palmTime,colliders,terrain, meshHeight, floor, sandMat, animals, skyU, skyRig, sun, halo, clouds, lake, pool, mirage, streaks, shafts, lanterns, shaliGlows, flock, doves, perchedDoves, egrets, flyEgret, dragonflies, fennec, LAKE, GROVE, SPRING, SHALI, ORACLE, LAKE_Y, shaliBase, oracleBase, springY, shaliFlag, seq, easeU, ahr, smoothU, v, mat, range, rand };
+return { lowDetail:()=>lowDetailSwitches.forEach(fn=>fn()),cameraSolids,palmTime,colliders,terrain, meshHeight, floor, sandMat, animals, skyU, skyRig, sun, halo, clouds, lake, pool, mirage, streaks, shafts, lanterns, shaliGlows, flock, doves, perchedDoves, egrets, flyEgret, dragonflies, fennec, LAKE, GROVE, SPRING, SHALI, ORACLE, LAKE_Y, shaliBase, oracleBase, springY, shaliFlag, seq, easeU, ahr, smoothU, v, mat, range, rand };
 }

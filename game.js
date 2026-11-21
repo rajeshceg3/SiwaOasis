@@ -17,11 +17,11 @@ import gameProgram from './soundscape/program.js';
 const $=s=>document.querySelector(s), canvas=$('#scene');
 const qs=new URLSearchParams(location.search);
 const CLEAN=qs.get('clean')==='1', AUTOPLAY=qs.get('play')==='1', MUTED=qs.get('mute')==='1';
-const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motionPreference.matches;motionPreference.addEventListener('change',e=>{reduced=e.matches;});
+const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motionPreference.matches;motionPreference.addEventListener('change',e=>{reduced=e.matches||$('#motionToggle').checked;});
 
 let renderer;
 try{renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});}catch(e){$('#fallback').style.display='grid';throw e;}
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+let lightRender=false;let renderScale=Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1:1.35);renderer.setPixelRatio(renderScale);
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=T.SRGBColorSpace;
 renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
@@ -34,7 +34,7 @@ scene.fog=new T.FogExp2('#c8c6b5',.0020);
 /* Golden hour, fixed: sun low in the west, long warm shadows. */
 const hemi=new T.HemisphereLight(0xd3e4ef,0x6e614b,1.65);scene.add(hemi);
 const sunlight=new T.DirectionalLight(0xffd6a0,3.4);sunlight.castShadow=true;
-sunlight.shadow.mapSize.set(2048,2048);
+sunlight.shadow.mapSize.set(1024,1024);
 Object.assign(sunlight.shadow.camera,{left:-60,right:60,top:60,bottom:-60,near:8,far:380});
 sunlight.shadow.bias=-.0006;sunlight.shadow.normalBias=.06;sunlight.shadow.radius=3;
 scene.add(sunlight);scene.add(sunlight.target);
@@ -54,7 +54,7 @@ W.halo.position.copy(SUN_DIR).multiplyScalar(880);W.halo.lookAt(0,0,0);
 const composer=new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene,camera));
 const bloom=new UnrealBloomPass(new T.Vector2(innerWidth,innerHeight),.3,.45,1.5);
-composer.addPass(bloom);
+bloom.enabled=!matchMedia('(pointer:coarse)').matches;composer.addPass(bloom);
 /* Heat shimmer: thin animated refraction band hugging the horizon line. */
 const ShimmerShader={
  uniforms:{tDiffuse:{value:null},time:{value:0},horizonY:{value:.5},amt:{value:0}},
@@ -175,11 +175,11 @@ const found=new Set();const dots=[...document.querySelectorAll('#dots i')];
 const card=$('#card');let cardTimer=0;
 function showCard(text){card.textContent=text;card.classList.add('show');clearTimeout(cardTimer);cardTimer=setTimeout(()=>card.classList.remove('show'),3400);}
 function checkSites(pos){
-  if(doneShown||!begun)return;
+  if(doneShown||!begun||paused)return;
   for(const s of SITES){if(found.has(s.id))continue;
     const dx=pos.x-s.p.x,dz=pos.z-s.p.z;
     if(dx*dx+dz*dz<s.r*s.r){found.add(s.id);dots[SITES.indexOf(s)].classList.add('on');
-      showCard(s.name);if(found.size===SITES.length)finish();break;}}
+      if(bearingSite?.id===s.id)bearingSite=null;showCard(`${s.name} · ${found.size} of 6`);syncJourney();saveWalk();if(found.size===SITES.length&&!completionSeen)finish();break;}}
 }
 
 /* ---------- Audio ---------- */
@@ -189,7 +189,7 @@ async function startAudio(){if(audioOn||MUTED)return;audioOn=true;try{await soun
 
 /* ---------- Input: touch joystick + look drag, keys + mouse ---------- */
 const keys={};
-addEventListener('keydown',e=>{keys[e.code]=true;});
+addEventListener('keydown',e=>{if(e.target.closest('input,textarea,summary')||!$('#menu').hidden||!$('#done').hidden)return;if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyQ','KeyE'].includes(e.code)){e.preventDefault();keys[e.code]=true;}});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 const joyEl=$('#joy'),nub=$('#nub');
 let joyId=null,joyOx=0,joyOy=0,joyX=0,joyY=0,lookId=null,lookLx=0,lookLy=0;
@@ -197,24 +197,24 @@ let camYaw=Math.PI,camPitch=.12,camYawSm=Math.PI;
 function ptInLeft(x){return x<innerWidth*.5;}
 canvas.style.touchAction='none';
 addEventListener('pointerdown',e=>{
-  if(e.target&&e.target.closest&&e.target.closest('button,#start,#done'))return;
-  if(e.pointerType==='mouse'){if(lookId===null){lookId=e.pointerId;lookLx=e.clientX;lookLy=e.clientY;}return;}
+  if(!begun||paused||doneShown||e.target?.closest('button,#start,#done,#menu'))return;try{canvas.setPointerCapture(e.pointerId);}catch{}
+  if(e.pointerType==='mouse'){if(e.button!==0)return;if(lookId===null){lookId=e.pointerId;lookLx=e.clientX;lookLy=e.clientY;}return;}
   if(ptInLeft(e.clientX)&&joyId===null){joyId=e.pointerId;joyOx=e.clientX;joyOy=e.clientY;joyX=joyY=0;
     joyEl.style.display='block';joyEl.style.left=(joyOx-60)+'px';joyEl.style.top=(joyOy-60)+'px';}
   else if(lookId===null){lookId=e.pointerId;lookLx=e.clientX;lookLy=e.clientY;}
 });
 addEventListener('pointermove',e=>{
   if(e.pointerId===joyId){const dx=e.clientX-joyOx,dy=e.clientY-joyOy,m=Math.hypot(dx,dy),cl=Math.min(m,52);
-    const a=Math.atan2(dy,dx);joyX=Math.cos(a)*cl/52;joyY=Math.sin(a)*cl/52;
+    if(m>10)masteredMove=true;updateCoach();const a=Math.atan2(dy,dx);joyX=Math.cos(a)*cl/52;joyY=Math.sin(a)*cl/52;
     nub.style.transform=`translate(calc(-50% + ${Math.cos(a)*cl}px),calc(-50% + ${Math.sin(a)*cl}px))`;}
   else if(e.pointerId===lookId){const dx=e.clientX-lookLx,dy=e.clientY-lookLy;lookLx=e.clientX;lookLy=e.clientY;
-    camYaw+=dx*.0038;camPitch=Math.max(-.12,Math.min(.55,camPitch+dy*.004));}
+    if(Math.abs(dx)+Math.abs(dy)>2)masteredLook=true;updateCoach();camYaw+=dx*.0038;camPitch=Math.max(-.12,Math.min(.55,camPitch+dy*.004));}
 });
 function releasePointer(e){
   if(e.pointerId===joyId){joyId=null;joyX=joyY=0;joyEl.style.display='none';nub.style.transform='translate(-50%,-50%)';}
   if(e.pointerId===lookId)lookId=null;
 }
-addEventListener('pointerup',releasePointer);addEventListener('pointercancel',releasePointer);
+canvas.addEventListener('lostpointercapture',releasePointer);addEventListener('orientationchange',()=>{clearInput();if(begun&&!doneShown)openMenu();});addEventListener('pointerup',releasePointer);addEventListener('pointercancel',releasePointer);
 
 /* ---------- Movement state ---------- */
 const spawnQ=(qs.get('spawn')||'').split(',').map(Number);
@@ -224,38 +224,48 @@ pos.y=meshHeight(pos.x,pos.z);
 let heading=camYaw,stride=0,dist=0,started=performance.now();
 const vel=v(0,0,0);
 const WALK=5.0;
-let paused=false,begun=false,doneShown=false,camSnap=true,hideStart=false,travelerReady=true,hideStartAt=0;
+let paused=false,begun=false,doneShown=false,camSnap=true,hideStart=false,travelerReady=true,hideStartAt=0;let playSeconds=0,completionSeen=false,masteredMove=false,masteredLook=false,bearingSite=null,saved=null,saveTime=0;const touchMode=matchMedia('(pointer:coarse)').matches;
+
 
 /* ---------- Overlay wiring ---------- */
 const startEl=$('#start'),beginBtn=$('#beginBtn'),pauseBtn=$('#pauseBtn');
 function begin(){
   begun=true;pauseBtn.hidden=CLEAN;
-  $('#soundBtn').hidden=false;$('#hint').hidden=false;setTimeout(()=>$('#hint').hidden=true,7500);started=performance.now();hideStart=true;hideStartAt=performance.now();camSnap=true;
+  $('#soundBtn').hidden=false;$('#journeyBtn').hidden=false;updateCoach();started=performance.now();hideStart=true;hideStartAt=performance.now();camSnap=true;
 }
 beginBtn.addEventListener('click',begin);
 startEl.addEventListener('keydown',e=>{if(e.key==='Escape')beginBtn.focus();});
 beginBtn.focus();
 if(AUTOPLAY)begin();
-pauseBtn.addEventListener('click',()=>{paused=!paused;pauseBtn.setAttribute('aria-pressed',String(paused));pauseBtn.setAttribute('aria-label',paused?'Resume':'Pause');});
-document.addEventListener('visibilitychange',()=>{last=performance.now();soundscape.handleVisibility();});
+pauseBtn.addEventListener('click',()=>openMenu());
+document.addEventListener('visibilitychange',()=>{last=performance.now();clearInput();saveWalk();if(document.hidden&&begun&&!doneShown)openMenu();soundscape.handleVisibility();});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);fxaa.material.uniforms.resolution.value.set(1/(innerWidth*renderer.getPixelRatio()),1/(innerHeight*renderer.getPixelRatio()));});
 
 function finish(){
   if(doneShown)return;doneShown=true;
-  const secs=Math.round((performance.now()-started)/1000),mm=Math.floor(secs/60),ss=String(secs%60).padStart(2,'0');
+  completionSeen=true;saveWalk();const secs=Math.round(playSeconds),mm=Math.floor(secs/60),ss=String(secs%60).padStart(2,'0');
   $('#doneStats').textContent=`${found.size} of ${SITES.length} found, ${Math.round(dist)} metres walked, ${mm}:${ss} in the evening light.`;
-  $('#done').hidden=false;$('#againBtn').focus();
+  $('#done').hidden=false;updateCoach();card.classList.remove('show');$('#againBtn').focus();
 }
-document.addEventListener('keydown',e=>{
-  const d=$('#done');if(d.hidden)return;
-  if(e.key==='Tab'){e.preventDefault();$('#againBtn').focus();}
-  if(e.key==='Escape'){e.preventDefault();}
-});
-document.addEventListener('focusin',e=>{
-  const d=$('#done');if(d.hidden)return;
-  if(!d.contains(e.target))$('#againBtn').focus();
-});
-$('#againBtn').addEventListener('click',()=>{$('#done').hidden=true;doneShown=false;player.position.set(0,meshHeight(0,76),76);pos.set(0,meshHeight(0,76),76);dist=0;found.clear();dots.forEach(d=>d.classList.remove('on'));prints.count=0;printHead=0;vel.set(0,0,0);started=performance.now();camYaw=Math.PI;camYawSm=Math.PI;camSnap=true;});
+function clearInput(){Object.keys(keys).forEach(k=>delete keys[k]);joyId=lookId=null;joyX=joyY=0;joyEl.style.display='none';vel.set(0,0,0);}
+function syncJourney(){$('#journeyBtn').setAttribute('aria-label',`Your journey, ${found.size} of 6 places found`);dots.forEach((d,i)=>d.classList.toggle('on',found.has(SITES[i].id)));}
+function updateCoach(){if(!begun)return;const hint=$('#hint');hint.hidden=masteredMove&&masteredLook||paused||doneShown||!!bearingSite;hint.textContent=!masteredMove?(touchMode?'Left thumb: slide to walk':'WASD or arrows: walk'):!masteredLook?(touchMode?'Right side: drag to look':'Drag the scene to look around'):'';}
+const observations=['Look up through the palms. Stay a moment for the birds.','Still water rests inside a circle of old stone.','Pale water meets the sand. Follow the shoreline.','Find a new angle between the old columns.','Turn back from a dune crest and look for the oasis.','The courtyard is open. Step inside the earthen walls.'];
+function journal(){const j=$('#journal');j.replaceChildren();SITES.forEach((site,i)=>{const row=document.createElement('details');row.className='place';const title=document.createElement('summary');title.textContent=(found.has(site.id)?'✓ ':'○ ')+site.name;const detail=document.createElement('p');detail.textContent=found.has(site.id)?observations[i]:'Still waiting to be found.';const btn=document.createElement('button');btn.textContent=found.has(site.id)?'Show the way back':'Show me the way';btn.onclick=()=>{bearingSite=site;closeMenu();showCard(`Following: ${site.name}`);};row.append(title,detail,btn);j.append(row);});const cancel=document.createElement('button');cancel.textContent=bearingSite?'Hide direction guide':'Back to the walk';cancel.onclick=()=>{bearingSite=null;$('#bearing').hidden=true;closeMenu();};j.append(cancel);$('#journal').hidden=false;$('#menuMain').hidden=true;$('#menuTitle').textContent='Your six quiet places';}
+let menuReturn=pauseBtn,storageAvailable=true;
+function openMenu(showJournal=false){if(!begun||doneShown)return;menuReturn=document.activeElement;paused=true;clearInput();saveWalk();$('#menu').hidden=false;$('#menuMain').hidden=false;$('#journal').hidden=true;$('#confirmReset').hidden=true;$('#menuTitle').textContent='A moment in Siwa';$('#menuStatus').textContent=storageAvailable?`${found.size} of 6 places found · ${Math.round(dist)} metres walked`:'Saving is unavailable. Keep this tab open to keep your walk.';pauseBtn.setAttribute('aria-pressed','true');if(showJournal)journal();updateCoach();$('#resumeBtn').focus();}
+function closeMenu(){paused=false;$('#menu').hidden=true;pauseBtn.setAttribute('aria-pressed','false');clearInput();updateCoach();(menuReturn?.isConnected&&menuReturn!==document.body&&menuReturn.getClientRects().length?menuReturn:pauseBtn).focus();last=performance.now();}
+function resetWalk(){found.clear();completionSeen=false;playSeconds=dist=0;prints.count=printHead=0;bearingSite=null;$('#bearing').hidden=true;pos.set(0,meshHeight(0,76),76);player.position.copy(pos);camYaw=camYawSm=heading=Math.PI;camPitch=.12;camSnap=true;doneShown=false;$('#done').hidden=true;syncJourney();clearInput();saveWalk();closeMenu();showCard('A fresh walk. Six quiet places await.');}
+$('#resumeBtn').onclick=closeMenu;$('#journalBtn').onclick=journal;$('#journeyBtn').onclick=()=>openMenu(true);$('#newBtn').onclick=()=>{$('#menuMain').hidden=true;$('#confirmReset').hidden=false;$('#cancelResetBtn').focus();};$('#cancelResetBtn').onclick=()=>{$('#confirmReset').hidden=true;$('#menuMain').hidden=false;$('#newBtn').focus();};$('#confirmBtn').onclick=resetWalk;$('#pathBtn').onclick=()=>{pos.set(0,meshHeight(0,76),76);camYaw=camYawSm=Math.PI;camSnap=true;closeMenu();saveWalk();showCard('Back on the open path. Discoveries kept.');};
+$('#wanderBtn').onclick=()=>{doneShown=false;$('#done').hidden=true;clearInput();pauseBtn.focus();updateCoach();showCard('Stay a little longer. Your journey is saved.');};$('#againBtn').onclick=resetWalk;
+$('#motionToggle').onchange=e=>{reduced=e.target.checked||motionPreference.matches;clearInput();saveWalk();};
+const help=touchMode?'Left thumb: slide to walk. Right side: drag to look. Pause holds your place.':'WASD or arrows: walk. Drag the scene or Q/E: look. Esc or P: pause. M: sound. J: journey.';$('#startHelp').textContent=help;$('#controlsHelp').textContent=help;
+document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea')&&e.key!=='Escape')return;const dialog=!$('#menu').hidden?$('#menu'):!$('#done').hidden?$('#done'):!startEl.hidden?startEl:null;if(dialog&&e.key==='Tab'){const list=[...dialog.querySelectorAll('button,summary,input')].filter(el=>!el.disabled&&el.getClientRects().length);const i=list.indexOf(document.activeElement);e.preventDefault();list[(i+(e.shiftKey?-1:1)+list.length)%list.length]?.focus();return;}if(e.key==='Escape'){e.preventDefault();if(!$('#menu').hidden)closeMenu();else if(begun&&!doneShown)openMenu();return;}if(!begun||doneShown||!$('#menu').hidden||e.repeat)return;if(e.code==='KeyP'){e.preventDefault();openMenu();}if(e.code==='KeyJ'){e.preventDefault();openMenu(true);}if(e.code==='KeyM'){e.preventDefault();$('#soundBtn').click();}});
+document.addEventListener('focusin',e=>{const d=!$('#menu').hidden?$('#menu'):!$('#done').hidden?$('#done'):!startEl.hidden?startEl:null;if(d&&!d.contains(e.target))d.querySelector('button:not(:disabled)')?.focus();});
+function saveWalk(){if(!begun)return;try{localStorage.setItem('siwa-walk-v1',JSON.stringify({v:1,x:pos.x,z:pos.z,yaw:camYaw,found:[...found],dist,seconds:playSeconds,completionSeen,motion:$('#motionToggle').checked,masteredMove,masteredLook}));}catch{storageAvailable=false;}}
+try{const data=JSON.parse(localStorage.getItem('siwa-walk-v1'));if(data?.v===1&&Number.isFinite(data.x)&&Number.isFinite(data.z)&&Math.hypot(data.x,data.z)<170&&Array.isArray(data.found))saved=data;}catch{}
+if(saved&&!AUTOPLAY&&!qs.has('spawn')){pos.set(saved.x,meshHeight(saved.x,saved.z),saved.z);camYaw=camYawSm=Number.isFinite(saved.yaw)?saved.yaw:Math.PI;for(const id of saved.found)if(SITES.some(s=>s.id===id))found.add(id);dist=Math.max(0,Number(saved.dist)||0);playSeconds=Math.max(0,Number(saved.seconds)||0);completionSeen=!!saved.completionSeen;masteredMove=!!saved.masteredMove;masteredLook=!!saved.masteredLook;$('#motionToggle').checked=!!saved.motion;reduced=reduced||!!saved.motion;syncJourney();}
+addEventListener('pagehide',saveWalk);
 
 /* ---------- Creature life (functions of elapsed; frozen when paused/reduced) ---------- */
 function tickAnimals(t,dt){
@@ -317,14 +327,15 @@ function tickAmbient(t,dt){
 }
 
 /* ---------- Main loop ---------- */
-let last=performance.now(),elapsed=0,ambient=0,lastCaptureRender=0;
+let last=performance.now(),elapsed=0,ambient=0,lastCaptureRender=0,lastRender=0,qualitySamples=0,qualityTotal=0,qualityAt=performance.now();
 const camTarget=v(0,0,0),camPos=v(0,0,0),cameraRay=new T.Raycaster(),cameraDirection=v(0,0,0);
 function animate(now){
   requestAnimationFrame(animate);
   if(document.hidden)return;
-  const dt=Math.min((now-last)/1000,.12);last=now;
+  const rawDt=(now-last)/1000,dt=Math.min(rawDt,.12);last=now;
+  if(qs.get('capture')!=='1'&&rawDt>0&&rawDt<3){qualitySamples++;qualityTotal+=rawDt;if(now-qualityAt>6000&&qualitySamples>5){const fps=qualitySamples/qualityTotal;if(fps<24&&renderScale>.66){renderScale=Math.max(.65,renderScale*.78);renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight);composer.setPixelRatio(renderScale);composer.setSize(innerWidth,innerHeight);fxaa.material.uniforms.resolution.value.set(1/(innerWidth*renderScale),1/(innerHeight*renderScale));bloom.enabled=false;if(fps<12){lightRender=true;renderer.shadowMap.enabled=false;W.lowDetail();W.pool.onBeforeRender=()=>{};}$('#qualityStatus').textContent='Lighter rendering is active for smoother walking.';}qualityAt=now;qualitySamples=qualityTotal=0;}}
   const moving=begun&&!paused&&!doneShown;
-  if(moving&&!reduced)elapsed+=dt;else if(moving&&reduced)elapsed+=0;
+  if(moving)playSeconds+=Math.min(rawDt,1);if(moving&&!reduced)elapsed+=dt;else if(moving&&reduced)elapsed+=0;
   if(!paused&&!reduced)ambient+=dt;
   /* input vector */
   let ix=0,iz=0;
@@ -334,26 +345,29 @@ function animate(now){
     ix+=joyX;iz-=joyY;
     const m=Math.hypot(ix,iz);if(m>1){ix/=m;iz/=m;}
   }
+  if(moving&&(keys.KeyQ||keys.KeyE)){camYaw+=((keys.KeyQ?1:0)-(keys.KeyE?1:0))*dt*1.35;masteredLook=true;updateCoach();}
   const hasInput=(ix||iz);
   if(hasInput){
-    $('#hint').hidden=true;
+    if(!masteredMove){masteredMove=true;updateCoach();}
     const sin=Math.sin(camYaw),cos=Math.cos(camYaw);
     const wx=sin*iz+cos*ix, wz=cos*iz-sin*ix;
     heading=Math.atan2(wx,wz);
     vel.x=wx*WALK;vel.z=wz*WALK;
   }else if(!moving){vel.set(0,0,0);}else{vel.x*=Math.exp(-dt*8);vel.z*=Math.exp(-dt*8);}
   const oldX=pos.x,oldZ=pos.z;
-  const nx=pos.x+vel.x*dt,nz=pos.z+vel.z*dt;
-  const rr=Math.hypot(nx,nz);
+  // Keep travel speed independent of render cadence, using short collision
+  // substeps instead of a long frame-sized leap through narrow obstacles.
+  const moveDt=moving?Math.min(rawDt,1):dt,steps=Math.max(1,Math.ceil(moveDt/.04)),step=moveDt/steps;
   const blocked=(x,z)=>((((x-LAKE.x)/59)**2+((z-LAKE.z)/43)**2<1&&meshHeight(x,z)<W.LAKE_Y+.3)||Math.hypot(x-SPRING.x,z-SPRING.z)<6.1||W.colliders.some(c=>Math.hypot(x-c.x,z-c.z)<c.r+.28));
-  if(!blocked(nx,nz)&&rr<170){pos.x=nx;pos.z=nz;}
-  else if(rr<170){if(!blocked(nx,pos.z))pos.x=nx;if(!blocked(pos.x,nz))pos.z=nz;}
-  else{const s=170/rr;pos.x=nx*s;pos.z=nz*s;}
-  const speed=dt>0?Math.hypot(pos.x-oldX,pos.z-oldZ)/dt:0;
-  if(speed>.4){dist+=speed*dt;stride+=speed*dt;
+  for(let sub=0;sub<steps;sub++){const nx=pos.x+vel.x*step,nz=pos.z+vel.z*step,rr=Math.hypot(nx,nz);
+    if(!blocked(nx,nz)&&rr<170){pos.x=nx;pos.z=nz;}
+    else if(rr<170){if(!blocked(nx,pos.z))pos.x=nx;if(!blocked(pos.x,nz))pos.z=nz;}
+    else{const scale=170/rr;pos.x=nx*scale;pos.z=nz*scale;}}
+  const speed=moveDt>0?Math.hypot(pos.x-oldX,pos.z-oldZ)/moveDt:0;
+  if(speed>.4){dist+=speed*moveDt;stride+=speed*moveDt;
     if(stride>.72){stride=0;addPrint(pos.x,pos.z,heading,(printHead%2?1:-1));if(!reduced)puff(pos.x,pos.y,pos.z);}}
   const groundY=meshHeight(pos.x,pos.z);
-  pos.y+=(groundY-pos.y)*Math.min(1,dt*10);
+  if(moving)pos.y+=(groundY-pos.y)*Math.min(1,dt*10);
   player.position.copy(pos);
   player.rotation.y=heading;
   /* walk sway */
@@ -389,7 +403,7 @@ function animate(now){
   if(!paused&&!reduced){tickAnimals(elapsed,dt);tickAmbient(ambient,dt);}
   else if(!paused&&reduced){}
   agePrints(dt);tickDust(dt);
-  checkSites(pos);
+  if(moving)checkSites(pos);if(begun&&now-saveTime>2500){saveTime=now;saveWalk();}if(bearingSite&&!paused&&!doneShown){const dx=bearingSite.p.x-pos.x,dz=bearingSite.p.z-pos.z,angle=Math.atan2(dx,dz)-camYaw,turn=Math.atan2(Math.sin(angle),Math.cos(angle));$('#bearing').hidden=false;$('#bearing').textContent=`${Math.abs(turn)<.3?'Ahead':turn<0?'Turn right':'Turn left'} · ${bearingSite.name} · ${Math.round(Math.hypot(dx,dz))} m`;}else $('#bearing').hidden=true;
   /* oasis audio crossfade */
   if(audioOn){const dg=Math.hypot(pos.x-GROVE.x,pos.z-GROVE.z);
     const dl=Math.hypot(pos.x-LAKE.x,pos.z-LAKE.z);
@@ -402,15 +416,18 @@ function animate(now){
   shimmer.uniforms.time.value=ambient;
   shimmer.uniforms.amt.value=(paused||reduced||Math.hypot(pos.x-GROVE.x,pos.z-GROVE.z)<65)?0:.95*(.85+.15*Math.min(3,devicePixelRatio||1));
   // Explicit test mode limits render work only, never input/physics clocks or speed.
-  if(qs.get('capture')!=='1'||now-lastCaptureRender>6000){composer.render();lastCaptureRender=now;}
-  if(hideStart){startEl.hidden=true;hideStart=false;}
+  if((!paused&&qs.get('capture')!=='1'&&now-lastRender>33)||now-lastCaptureRender>6000){if(lightRender)renderer.render(scene,camera);else composer.render();lastRender=now;lastCaptureRender=now;}
+  if(hideStart){startEl.hidden=true;hideStart=false;}if(beginBtn.disabled){beginBtn.disabled=false;beginBtn.textContent=saved?'Continue your walk':'Begin the walk';beginBtn.focus();}
 }
 tickAnimals(0,0);tickAmbient(0,0);
 requestAnimationFrame(animate);
-window.__game={player,W,camera,T,pos:()=>pos,found,prints,SITES,teleport:(x,z,yaw)=>{pos.set(x,meshHeight(x,z),z);vel.set(0,0,0);if(yaw!=null){camYaw=yaw;heading=yaw;}camSnap=true;},begin,printCount:()=>prints.count};
+player.name='palmFocusTarget';
+window.__game={renderInfo:()=>({...renderer.info.render,memory:renderer.info.memory}),state:()=>({paused,playSeconds,completionSeen,renderScale,storageAvailable,lightRender,audioOn,soundEnabled:soundscape.on,audioContext:soundscape.context?.state,bearing:bearingSite?.id,masteredMove,masteredLook}),save:saveWalk,player,W,camera,T,pos:()=>pos,found,prints,SITES,teleport:(x,z,yaw)=>{pos.set(x,meshHeight(x,z),z);vel.set(0,0,0);if(yaw!=null){camYaw=yaw;heading=yaw;}camSnap=true;},begin,printCount:()=>prints.count};
 // Gate hooks (scene-inspection raycast)
 window.__gateScene=scene;window.__gateCamera=camera;
 
 
-$('#soundBtn').addEventListener('click',async()=>{if(!audioOn)await startAudio();else soundscape.setOn(!soundscape.on);$('#soundBtn').setAttribute('aria-pressed',String(soundscape.on));$('#soundBtn').setAttribute('aria-label',soundscape.on?'Turn sound off':'Turn sound on');});
+$('#soundBtn').addEventListener('click',async()=>{const btn=$('#soundBtn');btn.disabled=true;btn.setAttribute('aria-label','Preparing sound');try{if(!audioOn){await soundscape.start('trek');audioOn=true;}else soundscape.setOn(!soundscape.on);btn.setAttribute('aria-pressed',String(soundscape.on));btn.setAttribute('aria-label',soundscape.on?'Turn sound off':'Turn sound on');btn.title=soundscape.on?'Sound on, tap to mute':'Sound off, tap to listen';}catch{audioOn=false;btn.setAttribute('aria-pressed','false');btn.setAttribute('aria-label','Retry sound');showCard('Sound could not start. Tap the music note to retry.');}finally{btn.disabled=false;}});
 addEventListener('blur',()=>{Object.keys(keys).forEach(k=>delete keys[k]);joyId=lookId=null;joyX=joyY=0;joyEl.style.display='none';vel.set(0,0,0);});
+
+canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();clearInput();saveWalk();if(begun&&!doneShown)openMenu();const el=$('#loadStatus');el.replaceChildren();const box=document.createElement('div'),p=document.createElement('p'),b=document.createElement('button');p.textContent='The graphics connection paused. Your last saved walk is safe on this device.';b.textContent='Reload the walk';b.onclick=()=>location.reload();box.append(p,b);el.append(box);el.classList.add('show');b.focus();});
