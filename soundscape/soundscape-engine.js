@@ -33,6 +33,7 @@ export function createSoundscape(program, { masterGain = 0.85, fadeSec = 2.0 } =
       const sr = state.ctx.sampleRate;
       for (const id of Object.keys(program.layers)) {
         state.buffers.set(id, renderLayer(sr, id));
+        await new Promise(resolve=>setTimeout(resolve,0));
       }
       for (const [sceneName, entries] of Object.entries(program.scenes)) {
         for (const e of entries) {
@@ -68,8 +69,7 @@ export function createSoundscape(program, { masterGain = 0.85, fadeSec = 2.0 } =
     get scene() { return state.scene; },
     get context() { return state.ctx; },
     async start(sceneName) {
-      await build();
-      await state.ctx.resume();
+      try{await build();await state.ctx.resume();}catch(e){if(state.ctx)try{await state.ctx.close();}catch{}state.ctx=null;state.building=null;state.nodes.clear();state.buffers.clear();throw e;}
       state.on = true;
       const t = state.ctx.currentTime;
       state.master.gain.cancelScheduledValues(t);
